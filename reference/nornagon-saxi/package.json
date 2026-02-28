@@ -1,0 +1,90 @@
+{
+  "name": "saxi",
+  "version": "0.15.0",
+  "description": "Drive the AxiDraw pen plotter",
+  "homepage": "https://github.com/nornagon/saxi",
+  "repository": "github:nornagon/saxi",
+  "bugs": "https://github.com/nornagon/saxi/issues",
+  "keywords": [
+    "axidraw",
+    "plotter",
+    "pen plotter",
+    "eggbot",
+    "serial",
+    "hardware",
+    "robot"
+  ],
+  "main": "index.js",
+  "bin": {
+    "saxi": "cli.js"
+  },
+  "scripts": {
+    "prebuild": "npm run lint",
+    "lint": "eslint --cache --ext .ts,.tsx src",
+    "build": "tsc && webpack --mode=production",
+    "prepare": "rimraf dist && npm run build",
+    "prestart": "npm run build",
+    "start": "node cli.js",
+    "dev": "tsc && webpack --mode=development -w & node cli.js",
+    "deploy": "rimraf dist/ui && IS_WEB=1 webpack --mode=production && gh-pages -d dist/ui",
+    "test": "jest"
+  },
+  "author": "Jeremy Rose <nornagon@nornagon.net>",
+  "license": "AGPL-3.0-only",
+  "devDependencies": {
+    "@rehooks/component-size": "^1.0.2",
+    "@types/cors": "^2.8.4",
+    "@types/express": "^4.16.1",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^14.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/w3c-web-serial": "^1.0.2",
+    "@types/ws": "8.0.0 - 8.5.4",
+    "@types/yargs": "^12.0.8",
+    "@typescript-eslint/eslint-plugin": "^5.15.0",
+    "@typescript-eslint/parser": "^5.15.0",
+    "color-interpolate": "^1.0.5",
+    "colormap": "^2.3.2",
+    "css-loader": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.12.4",
+    "file-loader": "^6.0.0",
+    "gh-pages": "^3.2.3",
+    "html-webpack-plugin": "^5.0.0",
+    "jest": "^29.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "rimraf": "^5.0.0",
+    "semver": "^7.5.2",
+    "style-loader": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "ts-loader": "^9.0.0",
+    "typescript": "~5.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^5.0.0",
+    "worker-loader": "^3.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
+    "flatten-svg": "^0.2.1",
+    "optimize-paths": "^1.2.2",
+    "serialport": "^11.0.0",
+    "svgdom": "0.0.21",
+    "wake-lock": "^0.2.0",
+    "web-streams-polyfill": "^3.0.3",
+    "ws": "^8.0.0",
+    "yargs": "^15.4.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest"
+  },
+  "files": [
+    "/dist",
+    "cli.js"
+  ]
+}

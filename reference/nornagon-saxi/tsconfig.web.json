@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "module": "es6",
+    "target": "es6",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "allowJs": true
+  },
+  "files": [
+    "src/ui.tsx",
+    "src/global.d.ts"
+  ]
+}
