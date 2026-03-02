@@ -5,6 +5,26 @@ import { EBB } from "./lib/ebb.js";
 import { parseSVG, scalePaths, PaperSizes } from "./lib/svg.js";
 import { createPlan, formatDuration, Device } from "./lib/planning.js";
 
+// Settings to persist across sessions
+const PERSISTED_KEYS = [
+  "paperSize",
+  "paperWidth",
+  "paperHeight",
+  "marginMm",
+  "fitPage",
+  "penUpHeight",
+  "penDownHeight",
+];
+const STORAGE_KEY = "axya:settings";
+
+function loadPersisted() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 // Initial state for the reducer
 const initialState = {
   // Connection state
@@ -45,6 +65,9 @@ const initialState = {
 
   // Error state
   error: null,
+
+  // Restore persisted settings on top of defaults
+  ...loadPersisted(),
 };
 
 // Reducer for state management
@@ -200,6 +223,13 @@ function App() {
 
   // Get paper dimensions
   const paper = { width: state.paperWidth, height: state.paperHeight };
+
+  // Effect: Persist settings to localStorage
+  useEffect(() => {
+    const toSave = {};
+    for (const key of PERSISTED_KEYS) toSave[key] = state[key];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  }, PERSISTED_KEYS.map((k) => state[k])); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect: Resize observer for canvas container
   useEffect(() => {
@@ -400,23 +430,38 @@ function App() {
     canvasSize,
   ]);
 
-  // Handler: Connect to plotter
+  // Complete the connection handshake after obtaining an EBB instance
+  const finishConnect = useCallback(async (ebb) => {
+    const firmwareVersion = await ebb.firmwareVersion();
+    const steppersPowered = await ebb.areSteppersPowered();
+    dispatch({ type: "CONNECTED", ebb, firmwareVersion, steppersPowered });
+  }, []);
+
+  // Handler: Connect to plotter (user-initiated, shows port picker)
   const handleConnect = useCallback(async () => {
     try {
       const ebb = await EBB.connect();
-      const firmwareVersion = await ebb.firmwareVersion();
-      const steppersPowered = await ebb.areSteppersPowered();
-
-      dispatch({
-        type: "CONNECTED",
-        ebb,
-        firmwareVersion,
-        steppersPowered,
-      });
+      await finishConnect(ebb);
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: err.message });
     }
-  }, []);
+  }, [finishConnect]);
+
+  // Effect: Auto-reconnect to previously-paired device on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ebb = await EBB.tryAutoConnect();
+        if (ebb && !cancelled) await finishConnect(ebb);
+      } catch {
+        // Silent — user can connect manually
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [finishConnect]);
 
   // Handler: Disconnect from plotter
   const handleDisconnect = useCallback(async () => {
@@ -513,21 +558,10 @@ function App() {
   }, [state.ebb, state.plan]);
 
   // Handler: Stop plotting
-  const handleStop = useCallback(async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Lift pen and disable motors
-    if (state.ebb) {
-      try {
-        await state.ebb.penUp(state.penUpHeight);
-        await state.ebb.disableMotors();
-      } catch (err) {
-        console.error("Error stopping:", err);
-      }
-    }
-  }, [state.ebb, state.penUpHeight]);
+  // EBB.executePlan handles pen lift + HM home + motor disable on abort.
+  const handleStop = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   // Handler: Pen up
   const handlePenUp = useCallback(async () => {

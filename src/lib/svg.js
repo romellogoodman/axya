@@ -5,6 +5,7 @@
  */
 
 import { flattenSVG } from "flatten-svg";
+import { reorder as sortPaths } from "optimize-paths";
 import { Device } from "./planning.js";
 
 /**
@@ -63,6 +64,7 @@ export function parseSVG(svgString) {
  * @param {number} options.paperHeight - Paper height in mm
  * @param {number} options.marginMm - Margin in mm
  * @param {boolean} options.fitPage - If true, scale to fit; if false, use 1 SVG px = 1/96 inch
+ * @param {boolean} options.sortPaths - If true, reorder/reverse paths to minimize pen-up travel
  * @param {number} options.svgWidth - Original SVG width
  * @param {number} options.svgHeight - Original SVG height
  * @param {{x: number, y: number, width: number, height: number} | null} options.viewBox - SVG viewBox
@@ -74,6 +76,7 @@ export function scalePaths(paths, options) {
     paperHeight,
     marginMm = 20,
     fitPage = true,
+    sortPaths: shouldSort = true,
   } = options;
 
   if (paths.length === 0) {
@@ -128,12 +131,16 @@ export function scalePaths(paths, options) {
   // Apply transformation: translate to origin, scale, translate to paper
   const stepsPerMm = Device.stepsPerMm;
 
-  return paths.map((path) =>
+  const scaled = paths.map((path) =>
     path.map((point) => ({
       x: ((point.x - minX) * scale + offsetX) * stepsPerMm,
       y: ((point.y - minY) * scale + offsetY) * stepsPerMm,
     }))
   );
+
+  // Reorder (and reverse where helpful) to minimize pen-up travel.
+  // Done post-scaling so distances are in real plotter units.
+  return shouldSort ? sortPaths(scaled) : scaled;
 }
 
 /**

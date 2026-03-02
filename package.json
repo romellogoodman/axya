@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "flatten-svg": "^0.3.0",
+    "optimize-paths": "^1.2.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

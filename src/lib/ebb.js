@@ -64,18 +64,22 @@ export class EBB {
   }
 
   /**
-   * Connect to an EBB device via WebSerial
+   * Connect to an EBB device via WebSerial.
+   * If a port is provided (e.g. from navigator.serial.getPorts()), uses it
+   * directly without prompting the user.
    */
-  static async connect() {
+  static async connect(port) {
     if (!navigator.serial) {
       throw new Error(
         "WebSerial API not supported. Please use Chrome or Edge browser."
       );
     }
 
-    const port = await navigator.serial.requestPort({
-      filters: [{ usbVendorId: EBB_VENDOR_ID, usbProductId: EBB_PRODUCT_ID }],
-    });
+    if (!port) {
+      port = await navigator.serial.requestPort({
+        filters: [{ usbVendorId: EBB_VENDOR_ID, usbProductId: EBB_PRODUCT_ID }],
+      });
+    }
 
     await port.open({ baudRate: 9600 });
 
@@ -83,6 +87,26 @@ export class EBB {
     await ebb.setupStreams();
 
     return ebb;
+  }
+
+  /**
+   * Try to reconnect to a previously-paired EBB without a user gesture.
+   * Returns an EBB instance if a paired port is found, null otherwise.
+   */
+  static async tryAutoConnect() {
+    if (!navigator.serial) return null;
+
+    const ports = await navigator.serial.getPorts();
+    const ebbPort = ports.find((p) => {
+      const info = p.getInfo();
+      return (
+        info.usbVendorId === EBB_VENDOR_ID &&
+        info.usbProductId === EBB_PRODUCT_ID
+      );
+    });
+
+    if (!ebbPort) return null;
+    return EBB.connect(ebbPort);
   }
 
   /**
@@ -387,14 +411,23 @@ export class EBB {
 
     await this.enableMotors(2);
 
+    // Track pen state so we know whether to lift on cancel
+    let penIsUp = true;
+    const penUpPos = plan.motions.find((m) => m instanceof PenMotion)?.initialPos;
+
     try {
       for (let i = 0; i < plan.motions.length; i++) {
-        // Check for abort
         if (signal?.aborted) {
           throw new Error("Plot aborted");
         }
 
-        await this.executeMotion(plan.motions[i]);
+        const motion = plan.motions[i];
+        await this.executeMotion(motion);
+
+        if (motion instanceof PenMotion) {
+          // Servo position increases as pen lifts (penPctToPos: 0% = max, 100% = min)
+          penIsUp = motion.finalPos > motion.initialPos;
+        }
 
         if (onProgress) {
           onProgress(i + 1, plan.motions.length);
@@ -402,6 +435,16 @@ export class EBB {
       }
 
       await this.waitUntilMotorsIdle();
+    } catch (err) {
+      if (signal?.aborted) {
+        // Lift pen if it was down, then home the carriage via firmware
+        if (!penIsUp && penUpPos != null) {
+          await this.setPenHeight(penUpPos, 0, 150);
+        }
+        await this.command("HM,4000");
+        await this.waitUntilMotorsIdle();
+      }
+      throw err;
     } finally {
       await this.disableMotors();
     }
