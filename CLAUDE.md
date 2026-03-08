@@ -1,13 +1,28 @@
 # Project Guidelines
 
-This is a React.js app with SCSS styles.
+Browser-based AxiDraw pen plotter controller. React + Vite + SCSS. WebSerial only — no server.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full data flow, EBB protocol notes, and comparison with the vendored saxi reference implementations.
 
 ## File Structure
 
-- All React components should be placed in `src/App.jsx`
-- All styles should be placed in `src/App.scss`
+```
+src/
+  App.jsx          # Root: reducer wiring, pipeline effects, handlers, sidebar JSX
+  Preview.jsx      # Canvas preview (paper + paths + progress overlay)
+  state.js         # initialState, reducer, localStorage persistence
+  App.scss         # All styles
+  lib/
+    ebb.js         # EiBotBoard WebSerial driver
+    planning.js    # Constant-acceleration motion planner
+    svg.js         # SVG parse + scale + sort
+    vec.js         # 2D vector math
+reference/         # Vendored saxi (nornagon + alexrudd2 forks) for comparison
+```
 
-This single-file approach is intentional for rapid prototyping. Refactor into multiple files as the prototype grows.
+- Pure/library code lives in `src/lib/`, React components at `src/` root.
+- New React components go in their own file at `src/` — keep App.jsx for orchestration.
+- All styles still go in `src/App.scss`.
 
 ## CSS/SCSS Conventions
 
