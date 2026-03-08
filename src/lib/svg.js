@@ -167,6 +167,11 @@ export const PaperSizes = {
   // AxiDraw specific
   "AxiDraw SE/A3": { width: 430, height: 297, name: "AxiDraw SE/A3" },
   "AxiDraw V3": { width: 300, height: 218, name: "AxiDraw V3" },
+
+  // Bantam NextDraw (plot areas)
+  "NextDraw 8511": { width: 279.4, height: 215.9, name: "NextDraw 8511" }, // 11×8.5"
+  "NextDraw 1117": { width: 431.8, height: 279.4, name: "NextDraw 1117" }, // 17×11"
+  "NextDraw 2234": { width: 863.6, height: 558.8, name: "NextDraw 2234" }, // 34×22"
 };
 
 /**
