@@ -3,221 +3,13 @@ import "./App.scss";
 
 import { EBB } from "./lib/ebb.js";
 import { parseSVG, scalePaths, PaperSizes } from "./lib/svg.js";
-import { createPlan, formatDuration, Device } from "./lib/planning.js";
-
-// Settings to persist across sessions
-const PERSISTED_KEYS = [
-  "paperSize",
-  "paperWidth",
-  "paperHeight",
-  "marginMm",
-  "fitPage",
-  "penUpHeight",
-  "penDownHeight",
-];
-const STORAGE_KEY = "axya:settings";
-
-function loadPersisted() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {};
-  } catch {
-    return {};
-  }
-}
-
-// Initial state for the reducer
-const initialState = {
-  // Connection state
-  connected: false,
-  ebb: null,
-  firmwareVersion: null,
-  steppersPowered: false,
-
-  // SVG state
-  svgString: null,
-  svgFileName: null,
-  rawPaths: null, // Paths in SVG coordinates
-  scaledPaths: null, // Paths in plotter step coordinates
-  svgWidth: 0,
-  svgHeight: 0,
-  svgViewBox: null,
-
-  // Planning state
-  plan: null,
-  estimatedDuration: null,
-
-  // Paper configuration
-  paperSize: "AxiDraw V3",
-  paperWidth: 300,
-  paperHeight: 218,
-  marginMm: 20,
-  fitPage: true,
-
-  // Pen configuration
-  penUpHeight: 50,
-  penDownHeight: 60,
-
-  // Plotting state
-  plotting: false,
-  progress: 0, // 0 to 1
-  currentMotion: 0,
-  totalMotions: 0,
-
-  // Error state
-  error: null,
-
-  // Restore persisted settings on top of defaults
-  ...loadPersisted(),
-};
-
-// Reducer for state management
-function reducer(state, action) {
-  switch (action.type) {
-    case "CONNECTED":
-      return {
-        ...state,
-        connected: true,
-        ebb: action.ebb,
-        firmwareVersion: action.firmwareVersion,
-        steppersPowered: action.steppersPowered,
-        error: null,
-      };
-    case "DISCONNECTED":
-      return {
-        ...state,
-        connected: false,
-        ebb: null,
-        firmwareVersion: null,
-        steppersPowered: false,
-      };
-    case "SET_SVG":
-      return {
-        ...state,
-        svgString: action.svgString,
-        svgFileName: action.fileName,
-        rawPaths: action.paths,
-        svgWidth: action.width,
-        svgHeight: action.height,
-        svgViewBox: action.viewBox,
-        scaledPaths: null,
-        plan: null,
-        estimatedDuration: null,
-      };
-    case "SET_SCALED_PATHS":
-      return {
-        ...state,
-        scaledPaths: action.paths,
-      };
-    case "SET_PLAN":
-      return {
-        ...state,
-        plan: action.plan,
-        estimatedDuration: action.duration,
-      };
-    case "SET_PAPER_SIZE":
-      return {
-        ...state,
-        paperSize: action.paperSize,
-        paperWidth: action.width,
-        paperHeight: action.height,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_PAPER_WIDTH":
-      return {
-        ...state,
-        paperSize: "",
-        paperWidth: action.width,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_PAPER_HEIGHT":
-      return {
-        ...state,
-        paperSize: "",
-        paperHeight: action.height,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_MARGIN":
-      return {
-        ...state,
-        marginMm: action.margin,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_FIT_PAGE":
-      return {
-        ...state,
-        fitPage: action.fitPage,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_PEN_UP_HEIGHT":
-      return {
-        ...state,
-        penUpHeight: action.height,
-        plan: null,
-      };
-    case "SET_PEN_DOWN_HEIGHT":
-      return {
-        ...state,
-        penDownHeight: action.height,
-        plan: null,
-      };
-    case "PLOTTING_START":
-      return {
-        ...state,
-        plotting: true,
-        progress: 0,
-        currentMotion: 0,
-        totalMotions: action.totalMotions,
-        error: null,
-      };
-    case "PLOTTING_PROGRESS":
-      return {
-        ...state,
-        currentMotion: action.current,
-        progress: action.current / state.totalMotions,
-      };
-    case "PLOTTING_COMPLETE":
-      return {
-        ...state,
-        plotting: false,
-        progress: 1,
-      };
-    case "PLOTTING_ERROR":
-      return {
-        ...state,
-        plotting: false,
-        error: action.error,
-      };
-    case "SET_ERROR":
-      return {
-        ...state,
-        error: action.error,
-      };
-    case "CLEAR_ERROR":
-      return {
-        ...state,
-        error: null,
-      };
-    case "UPDATE_STEPPERS_POWERED":
-      return {
-        ...state,
-        steppersPowered: action.powered,
-      };
-    default:
-      return state;
-  }
-}
+import { createPlan, formatDuration } from "./lib/planning.js";
+import { reducer, initialState, PERSISTED_KEYS, STORAGE_KEY } from "./state.js";
+import { Preview } from "./Preview.jsx";
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const canvasRef = useRef(null);
-  const previewRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -230,22 +22,6 @@ function App() {
     for (const key of PERSISTED_KEYS) toSave[key] = state[key];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }, PERSISTED_KEYS.map((k) => state[k])); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Effect: Resize observer for canvas container
-  useEffect(() => {
-    const container = previewRef.current;
-    if (!container) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        setCanvasSize({ width, height });
-      }
-    });
-
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
-  }, []);
 
   // Effect: Scale paths when paper size, margin, or fit page changes
   useEffect(() => {
@@ -289,146 +65,6 @@ function App() {
       duration: plan.duration(),
     });
   }, [state.scaledPaths, state.penUpHeight, state.penDownHeight]);
-
-  // Effect: Draw preview on canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || canvasSize.width === 0 || canvasSize.height === 0) return;
-
-    const ctx = canvas.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
-
-    const containerWidth = canvasSize.width;
-    const containerHeight = canvasSize.height;
-
-    // Set canvas size with DPR for sharp rendering
-    canvas.width = containerWidth * dpr;
-    canvas.height = containerHeight * dpr;
-    canvas.style.width = `${containerWidth}px`;
-    canvas.style.height = `${containerHeight}px`;
-
-    ctx.scale(dpr, dpr);
-
-    // Clear canvas
-    ctx.fillStyle = "#f8f8f7";
-    ctx.fillRect(0, 0, containerWidth, containerHeight);
-
-    // Calculate scale to fit paper in canvas
-    const paperWidthSteps = paper.width * Device.stepsPerMm;
-    const paperHeightSteps = paper.height * Device.stepsPerMm;
-
-    const padding = 24;
-    const availWidth = containerWidth - padding * 2;
-    const availHeight = containerHeight - padding * 2;
-
-    const scale = Math.min(
-      availWidth / paperWidthSteps,
-      availHeight / paperHeightSteps
-    );
-
-    const offsetX =
-      padding + (availWidth - paperWidthSteps * scale) / 2;
-    const offsetY =
-      padding + (availHeight - paperHeightSteps * scale) / 2;
-
-    // Draw paper
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "#e8e8e6";
-    ctx.lineWidth = 1;
-    ctx.fillRect(
-      offsetX,
-      offsetY,
-      paperWidthSteps * scale,
-      paperHeightSteps * scale
-    );
-    ctx.strokeRect(
-      offsetX,
-      offsetY,
-      paperWidthSteps * scale,
-      paperHeightSteps * scale
-    );
-
-    // Draw margin area
-    const marginSteps = state.marginMm * Device.stepsPerMm;
-    ctx.strokeStyle = "#e0e0e0";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(
-      offsetX + marginSteps * scale,
-      offsetY + marginSteps * scale,
-      (paperWidthSteps - marginSteps * 2) * scale,
-      (paperHeightSteps - marginSteps * 2) * scale
-    );
-    ctx.setLineDash([]);
-
-    // Draw paths
-    if (state.scaledPaths && state.scaledPaths.length > 0) {
-      ctx.strokeStyle = "#5c6bc0";
-      ctx.lineWidth = 1.5;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      for (const path of state.scaledPaths) {
-        if (path.length < 2) continue;
-
-        ctx.beginPath();
-        ctx.moveTo(
-          offsetX + path[0].x * scale,
-          offsetY + path[0].y * scale
-        );
-
-        for (let i = 1; i < path.length; i++) {
-          ctx.lineTo(
-            offsetX + path[i].x * scale,
-            offsetY + path[i].y * scale
-          );
-        }
-
-        ctx.stroke();
-      }
-    }
-
-    // Draw progress indicator during plotting
-    if (state.plotting && state.plan) {
-      ctx.strokeStyle = "#81c784";
-      ctx.lineWidth = 2;
-
-      // Calculate how many paths are complete
-      const completedPaths = Math.floor(
-        state.progress * state.scaledPaths.length
-      );
-
-      for (let p = 0; p < completedPaths && p < state.scaledPaths.length; p++) {
-        const path = state.scaledPaths[p];
-        if (path.length < 2) continue;
-
-        ctx.beginPath();
-        ctx.moveTo(
-          offsetX + path[0].x * scale,
-          offsetY + path[0].y * scale
-        );
-
-        for (let i = 1; i < path.length; i++) {
-          ctx.lineTo(
-            offsetX + path[i].x * scale,
-            offsetY + path[i].y * scale
-          );
-        }
-
-        ctx.stroke();
-      }
-    }
-  }, [
-    state.scaledPaths,
-    state.paperSize,
-    state.marginMm,
-    state.plotting,
-    state.progress,
-    state.plan,
-    paper.width,
-    paper.height,
-    canvasSize,
-  ]);
 
   // Complete the connection handshake after obtaining an EBB instance
   const finishConnect = useCallback(async (ebb) => {
@@ -477,7 +113,7 @@ function App() {
 
   // Handler: Process SVG file
   const processFile = useCallback((file) => {
-    if (!file || !file.name.toLowerCase().endsWith('.svg')) {
+    if (!file || !file.name.toLowerCase().endsWith(".svg")) {
       dispatch({ type: "SET_ERROR", error: "Please upload an SVG file" });
       return;
     }
@@ -505,10 +141,13 @@ function App() {
   }, []);
 
   // Handler: File upload
-  const handleFileUpload = useCallback((event) => {
-    const file = event.target.files?.[0];
-    if (file) processFile(file);
-  }, [processFile]);
+  const handleFileUpload = useCallback(
+    (event) => {
+      const file = event.target.files?.[0];
+      if (file) processFile(file);
+    },
+    [processFile]
+  );
 
   // Handler: Drag and drop
   const handleDragOver = useCallback((e) => {
@@ -521,12 +160,15 @@ function App() {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  }, [processFile]);
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files?.[0];
+      if (file) processFile(file);
+    },
+    [processFile]
+  );
 
   // Handler: Start plotting
   const handlePlot = useCallback(async () => {
@@ -839,7 +481,10 @@ function App() {
           {/* Plot Controls */}
           <div className="plot-controls">
             {state.plotting ? (
-              <button onClick={handleStop} className="button button--danger button--large">
+              <button
+                onClick={handleStop}
+                className="button button--danger button--large"
+              >
                 Stop
               </button>
             ) : (
@@ -861,14 +506,15 @@ function App() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <div className={`preview ${isDragging ? "preview--dragging" : ""}`} ref={previewRef}>
-            <canvas ref={canvasRef} className="preview__canvas" />
-            {isDragging && (
-              <div className="preview__drop-overlay">
-                Drop SVG here
-              </div>
-            )}
-          </div>
+          <Preview
+            paths={state.scaledPaths}
+            paperWidth={paper.width}
+            paperHeight={paper.height}
+            marginMm={state.marginMm}
+            plotting={state.plotting}
+            progress={state.progress}
+            isDragging={isDragging}
+          />
         </div>
       </div>
     </main>
