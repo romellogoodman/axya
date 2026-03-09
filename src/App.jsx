@@ -261,46 +261,6 @@ function App() {
       <div className="app__content">
         {/* Sidebar */}
         <aside className="app__sidebar">
-          {/* Connection */}
-          <div className="connection-group">
-            <button
-              onClick={state.connected ? handleDisconnect : handleConnect}
-              className={`connection-btn ${state.connected ? "connection-btn--connected" : ""}`}
-            >
-              <span className="connection-btn__dot"></span>
-              <span>{state.connected ? "Connected" : "Not Connected"}</span>
-            </button>
-            <button
-              onClick={handleDisableMotors}
-              disabled={!state.connected}
-              className="button button--secondary"
-              title="Disable Motors"
-            >
-              Off
-            </button>
-          </div>
-
-          {/* File Upload Section */}
-          {/* <section className="panel">
-            <h2 className="panel__title">File</h2>
-            <div className="panel__content">
-              <input
-                type="file"
-                accept=".svg"
-                onChange={handleFileUpload}
-                ref={fileInputRef}
-                className="file-input"
-                id="svg-upload"
-              />
-              <label htmlFor="svg-upload" className="button button--secondary">
-                Upload SVG
-              </label>
-              {state.svgFileName && (
-                <p className="panel__info">{state.svgFileName}</p>
-              )}
-            </div>
-          </section> */}
-
           {/* Plotter Selection */}
           <section className="panel">
             <h2 className="panel__title">Plotter</h2>
@@ -326,39 +286,29 @@ function App() {
                 </select>
               </div>
             </div>
+            <div className="connection-group">
+              <button
+                onClick={state.connected ? handleDisconnect : handleConnect}
+                className={`connection-btn ${state.connected ? "connection-btn--connected" : ""}`}
+              >
+                <span className="connection-btn__dot"></span>
+                <span>{state.connected ? "Connected" : "Connect"}</span>
+              </button>
+            </div>
+            <button
+              onClick={handleDisableMotors}
+              disabled={!state.connected}
+              className="button button--secondary"
+              title="Disable stepper motors for manual positioning"
+            >
+              Motors Off
+            </button>
           </section>
 
           {/* Paper Configuration */}
           <section className="panel">
             <h2 className="panel__title">Paper</h2>
             <div className="panel__content">
-              <div className="form-group">
-                <label htmlFor="paper-size">Size</label>
-                <select
-                  id="paper-size"
-                  value={state.paperSize}
-                  onChange={(e) => {
-                    const size = PaperSizes[e.target.value];
-                    if (size) {
-                      dispatch({
-                        type: "SET_PAPER_SIZE",
-                        paperSize: e.target.value,
-                        width: size.width,
-                        height: size.height,
-                      });
-                    }
-                  }}
-                  className="select"
-                >
-                  <option value="">Custom</option>
-                  {Object.keys(PaperSizes).map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="paper-width">Width (in)</label>
@@ -398,23 +348,51 @@ function App() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="margin">Margin (in)</label>
-                <input
-                  type="number"
-                  id="margin"
-                  value={Math.round((state.marginMm / 25.4) * 100) / 100}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_MARGIN",
-                      margin: Number(e.target.value) * 25.4,
-                    })
-                  }
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  className="input"
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="paper-size">Size</label>
+                  <select
+                    id="paper-size"
+                    value={state.paperSize}
+                    onChange={(e) => {
+                      const size = PaperSizes[e.target.value];
+                      if (size) {
+                        dispatch({
+                          type: "SET_PAPER_SIZE",
+                          paperSize: e.target.value,
+                          width: size.width,
+                          height: size.height,
+                        });
+                      }
+                    }}
+                    className="select"
+                  >
+                    <option value="">Custom</option>
+                    {Object.keys(PaperSizes).map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="margin">Margin (in)</label>
+                  <input
+                    type="number"
+                    id="margin"
+                    value={Math.round((state.marginMm / 25.4) * 100) / 100}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_MARGIN",
+                        margin: Number(e.target.value) * 25.4,
+                      })
+                    }
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    className="input"
+                  />
+                </div>
               </div>
 
               {/* <div className="form-group form-group--checkbox">
@@ -491,29 +469,20 @@ function App() {
             </div>
           </section>
 
-          {/* Stats */}
-          {(state.rawPaths || state.estimatedDuration != null) && (
-            <div className="stats-bar">
-              {state.rawPaths && (
-                <span className="stats-bar__item">
-                  {state.rawPaths.length} paths
-                </span>
-              )}
-              {state.estimatedDuration != null && (
-                <span className="stats-bar__item">
-                  {formatDuration(state.estimatedDuration)}
-                </span>
-              )}
-              {state.plotting && (
-                <span className="stats-bar__item">
-                  {Math.round(state.progress * 100)}%
-                </span>
-              )}
-            </div>
-          )}
-
           {/* Plot Controls */}
           <div className="plot-controls">
+            {state.estimatedDuration != null && (
+              <div className="stats-bar">
+                <span className="stats-bar__item">
+                  {formatDuration(state.estimatedDuration)} minutes
+                </span>
+                {state.plotting && (
+                  <span className="stats-bar__item">
+                    {Math.round(state.progress * 100)}%
+                  </span>
+                )}
+              </div>
+            )}
             {state.plotting ? (
               <button onClick={handleStop} className="button button--danger">
                 Stop
@@ -521,10 +490,21 @@ function App() {
             ) : (
               <button
                 onClick={handlePlot}
-                disabled={!state.connected || !state.plan}
+                disabled={!state.plan || !state.connected}
                 className="button button--primary"
+                title={
+                  !state.plan
+                    ? "Load an SVG file first"
+                    : !state.connected
+                      ? "Connect your plotter first"
+                      : "Start plotting"
+                }
               >
-                Plot
+                {!state.plan
+                  ? "Load SVG to Plot"
+                  : !state.connected
+                    ? "Connect to Plot"
+                    : "Plot"}
               </button>
             )}
           </div>
@@ -545,6 +525,14 @@ function App() {
             plotting={state.plotting}
             progress={state.progress}
             isDragging={isDragging}
+            onUploadClick={() => fileInputRef.current?.click()}
+          />
+          <input
+            type="file"
+            accept=".svg"
+            onChange={handleFileUpload}
+            ref={fileInputRef}
+            className="file-input"
           />
         </div>
       </div>

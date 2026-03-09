@@ -23,7 +23,9 @@ export function Preview({
   plotting,
   progress,
   isDragging,
+  onUploadClick,
 }) {
+  const isEmpty = !paths || paths.length === 0;
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -93,7 +95,7 @@ export function Preview({
 
     // Paths
     if (paths && paths.length > 0) {
-      ctx.strokeStyle = "#5c6bc0";
+      ctx.strokeStyle = "#2d2d2d";
       ctx.lineWidth = 1.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -101,9 +103,9 @@ export function Preview({
         if (path.length >= 2) strokePath(ctx, path, offsetX, offsetY, scale);
       }
 
-      // Progress overlay: re-stroke completed paths in green
+      // Progress overlay: re-stroke completed paths in teal
       if (plotting) {
-        ctx.strokeStyle = "#81c784";
+        ctx.strokeStyle = "#00d1b2";
         ctx.lineWidth = 2;
         const completed = Math.floor(progress * paths.length);
         for (let p = 0; p < completed && p < paths.length; p++) {
@@ -120,6 +122,22 @@ export function Preview({
       ref={containerRef}
     >
       <canvas ref={canvasRef} className="preview__canvas" />
+      {isEmpty && !isDragging && (
+        <div className="preview__empty">
+          <div className="preview__empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="12" x2="12" y2="18" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+          </div>
+          <p className="preview__empty-text">Drag & drop an SVG file here</p>
+          <button className="button button--secondary" onClick={onUploadClick}>
+            or choose file
+          </button>
+        </div>
+      )}
       {isDragging && (
         <div className="preview__drop-overlay">Drop SVG here</div>
       )}

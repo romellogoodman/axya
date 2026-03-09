@@ -47,10 +47,10 @@ export function parseSVG(svgString) {
     maxError: 0.1, // Approximation tolerance
   });
 
-  // Convert to our format
-  const paths = lines.map((line) =>
-    line.points.map(([x, y]) => ({ x, y }))
-  );
+  // Convert to our format and filter out empty paths
+  const paths = lines
+    .map((line) => line.points.map(([x, y]) => ({ x, y })))
+    .filter((path) => path.length >= 2);
 
   return { paths, width, height, viewBox };
 }
@@ -107,7 +107,8 @@ export function scalePaths(paths, options) {
   const pathWidth = maxX - minX;
   const pathHeight = maxY - minY;
 
-  if (pathWidth === 0 || pathHeight === 0) {
+  // Handle edge cases: no valid points or degenerate bounding box
+  if (!isFinite(pathWidth) || !isFinite(pathHeight) || pathWidth <= 0 || pathHeight <= 0) {
     return [];
   }
 
