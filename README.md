@@ -29,4 +29,12 @@ Open Chrome/Edge, connect your plotter via USB, and drop an SVG file onto the pr
 
 ## Architecture
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for data flow, EBB protocol details, and implementation notes.
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, EBB protocol details, and implementation notes.
+
+## Acknowledgments
+
+Axya is based on [saxi](https://github.com/nornagon/saxi) by nornagon, with additional reference to [alexrudd2's fork](https://github.com/alexrudd2/saxi). Thank you for the foundational work on motion planning and EBB protocol implementation.
+
+## License
+
+GNU Affero General Public License v3.0 - see [LICENSE](LICENSE) for details.
