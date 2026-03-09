@@ -5,7 +5,7 @@
  * The EBB is the USB-based motion controller inside AxiDraw plotters.
  */
 
-import { XYMotion, PenMotion, Device } from "./planning.js";
+import { XYMotion, PenMotion, penPctToPos, defaultDevice } from "./planning.js";
 
 // USB Vendor/Product IDs for EiBotBoard
 const EBB_VENDOR_ID = 0x04d8;
@@ -549,16 +549,16 @@ export class EBB {
   /**
    * Move pen to up position
    */
-  async penUp(height = 50) {
-    const pos = Device.penPctToPos(height);
+  async penUp(height = 50, device = defaultDevice) {
+    const pos = penPctToPos(height, device);
     await this.setPenHeight(pos, 0, 150);
   }
 
   /**
    * Move pen to down position
    */
-  async penDown(height = 60) {
-    const pos = Device.penPctToPos(height);
+  async penDown(height = 60, device = defaultDevice) {
+    const pos = penPctToPos(height, device);
     await this.setPenHeight(pos, 0, 150);
   }
 }

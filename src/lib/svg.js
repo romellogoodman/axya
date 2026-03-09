@@ -6,7 +6,7 @@
 
 import { flattenSVG } from "flatten-svg";
 import { reorder as sortPaths } from "optimize-paths";
-import { Device } from "./planning.js";
+import { defaultDevice } from "./planning.js";
 
 /**
  * Parse an SVG string into polylines
@@ -68,6 +68,7 @@ export function parseSVG(svgString) {
  * @param {number} options.svgWidth - Original SVG width
  * @param {number} options.svgHeight - Original SVG height
  * @param {{x: number, y: number, width: number, height: number} | null} options.viewBox - SVG viewBox
+ * @param {Object} options.device - Device hardware config
  * @returns {Array<Array<{x: number, y: number}>>} Paths in plotter step coordinates
  */
 export function scalePaths(paths, options) {
@@ -77,6 +78,7 @@ export function scalePaths(paths, options) {
     marginMm = 20,
     fitPage = true,
     sortPaths: shouldSort = true,
+    device = defaultDevice,
   } = options;
 
   if (paths.length === 0) {
@@ -129,7 +131,7 @@ export function scalePaths(paths, options) {
   }
 
   // Apply transformation: translate to origin, scale, translate to paper
-  const stepsPerMm = Device.stepsPerMm;
+  const stepsPerMm = device.stepsPerMm;
 
   const scaled = paths.map((path) =>
     path.map((point) => ({
@@ -164,14 +166,63 @@ export const PaperSizes = {
   A4: { width: 297, height: 210, name: "A4" },
   A3: { width: 420, height: 297, name: "A3" },
 
-  // AxiDraw specific
-  "AxiDraw SE/A3": { width: 430, height: 297, name: "AxiDraw SE/A3" },
-  "AxiDraw V3": { width: 300, height: 218, name: "AxiDraw V3" },
+};
 
-  // Bantam NextDraw (plot areas)
-  "NextDraw 8511": { width: 279.4, height: 215.9, name: "NextDraw 8511" }, // 11×8.5"
-  "NextDraw 1117": { width: 431.8, height: 279.4, name: "NextDraw 1117" }, // 17×11"
-  "NextDraw 2234": { width: 863.6, height: 558.8, name: "NextDraw 2234" }, // 34×22"
+/**
+ * Supported plotters with max drawing area (mm) and device settings
+ *
+ * Device settings:
+ * - stepsPerMm: stepper motor resolution
+ * - penServoMin: servo PWM for pen down (100%)
+ * - penServoMax: servo PWM for pen up (0%)
+ */
+const axidrawDevice = {
+  stepsPerMm: 5,
+  penServoMin: 7500,
+  penServoMax: 28000,
+};
+
+// NextDraw uses brushless servo with same EBB protocol
+const nextdrawDevice = {
+  stepsPerMm: 5,
+  penServoMin: 7500,
+  penServoMax: 28000,
+};
+
+export const Plotters = {
+  // AxiDraw
+  "AxiDraw V3": {
+    maxWidth: 300,
+    maxHeight: 218,
+    name: "AxiDraw V3",
+    device: axidrawDevice,
+  },
+  "AxiDraw SE/A3": {
+    maxWidth: 430,
+    maxHeight: 297,
+    name: "AxiDraw SE/A3",
+    device: axidrawDevice,
+  },
+
+  // Bantam NextDraw
+  "NextDraw 8511": {
+    maxWidth: 279.4,
+    maxHeight: 215.9,
+    name: "NextDraw 8511",
+    device: nextdrawDevice,
+  },
+  "NextDraw 1117": {
+    maxWidth: 431.8,
+    maxHeight: 279.4,
+    name: "NextDraw 1117",
+    device: nextdrawDevice,
+  },
+  "NextDraw 2234": {
+    maxWidth: 863.6,
+    maxHeight: 558.8,
+    name: "NextDraw 2234",
+    device: nextdrawDevice,
+  },
 };
 
 /**

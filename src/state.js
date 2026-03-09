@@ -4,6 +4,7 @@
 
 // Settings to persist across sessions
 export const PERSISTED_KEYS = [
+  "plotter",
   "paperSize",
   "paperWidth",
   "paperHeight",
@@ -42,10 +43,13 @@ export const initialState = {
   plan: null,
   estimatedDuration: null,
 
+  // Plotter configuration
+  plotter: "AxiDraw V3",
+
   // Paper configuration
-  paperSize: "AxiDraw V3",
-  paperWidth: 300,
-  paperHeight: 218,
+  paperSize: "Letter",
+  paperWidth: 279.4,
+  paperHeight: 215.9,
   marginMm: 20,
   fitPage: true,
 
@@ -108,6 +112,11 @@ export function reducer(state, action) {
         ...state,
         plan: action.plan,
         estimatedDuration: action.duration,
+      };
+    case "SET_PLOTTER":
+      return {
+        ...state,
+        plotter: action.plotter,
       };
     case "SET_PAPER_SIZE":
       return {

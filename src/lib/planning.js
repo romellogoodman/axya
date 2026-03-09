@@ -9,41 +9,56 @@ import { vadd, vdot, vlen, vmul, vnorm, vsub } from "./vec.js";
 
 const EPSILON = 1e-9;
 
-// AxiDraw v3 hardware constants
-export const Device = {
+// Default device hardware constants (AxiDraw v3)
+export const defaultDevice = {
   stepsPerMm: 5,
   penServoMin: 7500, // pen down (100%)
   penServoMax: 28000, // pen up (0%)
+};
 
-  /**
-   * Convert pen percentage (0-100) to servo PWM position
-   * 0% = fully up, 100% = fully down
-   */
+/**
+ * Convert pen percentage (0-100) to servo PWM position
+ * 0% = fully up, 100% = fully down
+ */
+export function penPctToPos(pct, device = defaultDevice) {
+  const t = pct / 100.0;
+  return Math.round(device.penServoMin * t + device.penServoMax * (1 - t));
+}
+
+// Legacy Device export for backwards compatibility
+export const Device = {
+  ...defaultDevice,
   penPctToPos(pct) {
-    const t = pct / 100.0;
-    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
+    return penPctToPos(pct, defaultDevice);
   },
 };
 
-// Default motion profiles
-export const defaultProfile = {
-  // Pen down (drawing) - slower, with cornering
-  penDownProfile: {
-    acceleration: 200 * Device.stepsPerMm, // 1000 steps/s²
-    maximumVelocity: 50 * Device.stepsPerMm, // 250 steps/s
-    corneringFactor: 0.127 * Device.stepsPerMm, // 0.635 steps
-  },
-  // Pen up (travel) - faster, no cornering
-  penUpProfile: {
-    acceleration: 400 * Device.stepsPerMm, // 2000 steps/s²
-    maximumVelocity: 200 * Device.stepsPerMm, // 1000 steps/s
-    corneringFactor: 0,
-  },
-  penUpHeight: 50, // percent
-  penDownHeight: 60, // percent
-  penDropDuration: 0.12, // seconds
-  penLiftDuration: 0.12, // seconds
-};
+/**
+ * Create motion profiles for a given device
+ */
+export function createProfiles(device = defaultDevice) {
+  return {
+    // Pen down (drawing) - slower, with cornering
+    penDownProfile: {
+      acceleration: 200 * device.stepsPerMm,
+      maximumVelocity: 50 * device.stepsPerMm,
+      corneringFactor: 0.127 * device.stepsPerMm,
+    },
+    // Pen up (travel) - faster, no cornering
+    penUpProfile: {
+      acceleration: 400 * device.stepsPerMm,
+      maximumVelocity: 200 * device.stepsPerMm,
+      corneringFactor: 0,
+    },
+    penUpHeight: 50, // percent
+    penDownHeight: 60, // percent
+    penDropDuration: 0.12, // seconds
+    penLiftDuration: 0.12, // seconds
+  };
+}
+
+// Default motion profiles (for backwards compatibility)
+export const defaultProfile = createProfiles(defaultDevice);
 
 /**
  * A single constant-acceleration motion block
@@ -448,16 +463,20 @@ function constantAccelerationPlan(points, profile) {
  *
  * @param {Array<Array<{x: number, y: number}>>} paths - Array of polylines
  * @param {Object} options - Planning options
+ * @param {Object} options.device - Device hardware config
  * @returns {Plan} The motion plan
  */
 export function createPlan(paths, options = {}) {
+  const device = options.device || defaultDevice;
+  const profiles = options.device ? createProfiles(device) : defaultProfile;
+
   const profile = {
-    penDownProfile: options.penDownProfile || defaultProfile.penDownProfile,
-    penUpProfile: options.penUpProfile || defaultProfile.penUpProfile,
-    penUpPos: Device.penPctToPos(options.penUpHeight ?? defaultProfile.penUpHeight),
-    penDownPos: Device.penPctToPos(options.penDownHeight ?? defaultProfile.penDownHeight),
-    penDropDuration: options.penDropDuration ?? defaultProfile.penDropDuration,
-    penLiftDuration: options.penLiftDuration ?? defaultProfile.penLiftDuration,
+    penDownProfile: options.penDownProfile || profiles.penDownProfile,
+    penUpProfile: options.penUpProfile || profiles.penUpProfile,
+    penUpPos: penPctToPos(options.penUpHeight ?? profiles.penUpHeight, device),
+    penDownPos: penPctToPos(options.penDownHeight ?? profiles.penDownHeight, device),
+    penDropDuration: options.penDropDuration ?? profiles.penDropDuration,
+    penLiftDuration: options.penLiftDuration ?? profiles.penLiftDuration,
   };
 
   const motions = [];
@@ -466,8 +485,8 @@ export function createPlan(paths, options = {}) {
   // Determine pen max up position for final lift
   const penMaxUpPos =
     profile.penUpPos < profile.penDownPos
-      ? Device.penPctToPos(100)
-      : Device.penPctToPos(0);
+      ? penPctToPos(100, device)
+      : penPctToPos(0, device);
 
   // For each path: travel to start, pen down, draw, pen up
   for (let i = 0; i < paths.length; i++) {
