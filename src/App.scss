@@ -98,10 +98,10 @@
     background: var(--color-surface);
     border-right: 1px solid var(--color-border);
     overflow-y: auto;
-    padding: var(--space-5);
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 
   &__main {
@@ -116,7 +116,7 @@
 // Panel
 .panel {
   &__title {
-    margin: 0 0 var(--space-3) 0;
+    margin: 0 0 var(--space-2) 0;
     font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
@@ -127,7 +127,7 @@
   &__content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 
   &__info {
@@ -137,13 +137,20 @@
   }
 }
 
+// Connection group
+.connection-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
 // Connection button
 .connection-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-3);
+  padding: var(--space-1) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
@@ -178,7 +185,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-1) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -220,23 +227,31 @@
   }
 
   &--small {
-    padding: var(--space-1) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     font-size: var(--font-size-xs);
-  }
-
-  &--large {
-    padding: var(--space-4) var(--space-6);
-    font-size: var(--font-size-lg);
-    min-width: 140px;
   }
 }
 
 .button-group {
   display: flex;
   gap: var(--space-2);
+
+  .button {
+    flex: 1;
+  }
 }
 
 // Form elements
+.form-row {
+  display: flex;
+  gap: var(--space-2);
+
+  .form-group {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -267,13 +282,13 @@
 
 .select,
 .input {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   background: var(--color-bg);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) - 2px);
 
   &:focus {
     outline: none;
@@ -364,7 +379,7 @@
   margin-top: auto;
   padding-top: var(--space-4);
 
-  .button--large {
+  .button {
     width: 100%;
   }
 }

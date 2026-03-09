@@ -9,7 +9,6 @@ export const PERSISTED_KEYS = [
   "paperWidth",
   "paperHeight",
   "marginMm",
-  "fitPage",
   "penUpHeight",
   "penDownHeight",
 ];
@@ -147,13 +146,6 @@ export function reducer(state, action) {
       return {
         ...state,
         marginMm: action.margin,
-        scaledPaths: null,
-        plan: null,
-      };
-    case "SET_FIT_PAGE":
-      return {
-        ...state,
-        fitPage: action.fitPage,
         scaledPaths: null,
         plan: null,
       };
