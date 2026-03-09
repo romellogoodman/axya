@@ -1,8 +1,16 @@
-# Prototype Boilerplate
+# Axya
 
-A minimal React boilerplate for rapid prototyping with Claude Code.
+A browser-based pen plotter controller for AxiDraw and Bantam NextDraw plotters.
 
-React 19 + Vite + SCSS with BEM conventions.
+No installation required — runs entirely in the browser using the WebSerial API. Chrome or Edge only.
+
+## Features
+
+- Direct USB communication with EiBotBoard controllers
+- SVG file support with automatic path optimization
+- Real-time preview with progress visualization
+- Configurable paper sizes, margins, and pen heights
+- Auto-reconnect to previously paired devices
 
 ## Quick Start
 
@@ -11,22 +19,14 @@ npm install
 npm run dev
 ```
 
-## Available Scripts
+Open Chrome/Edge, connect your plotter via USB, and drop an SVG file onto the preview area.
 
-```bash
-npm run dev          # Start dev server (port 8080)
-npm run build        # Build for production
-npm run lint         # Check for errors
-npm run lint:fix     # Fix linting errors
-npm run format       # Format code with Prettier
-npm run preview      # Preview production build
-npm run clean        # Remove build artifacts
-```
+## Supported Plotters
 
-## Environment Variables
+- AxiDraw V3
+- AxiDraw SE/A3
+- Bantam NextDraw 8511, 1117, 2234
 
-Copy `.env.example` to `.env.local` and configure as needed. All variables must be prefixed with `VITE_`.
+## Architecture
 
-## Project Guidelines
-
-See [CLAUDE.md](CLAUDE.md) for file structure conventions, CSS/SCSS guidelines, and other project-specific instructions.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for data flow, EBB protocol details, and implementation notes.

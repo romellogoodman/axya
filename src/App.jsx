@@ -273,7 +273,7 @@ function App() {
             <button
               onClick={handleDisableMotors}
               disabled={!state.connected}
-              className="button button--secondary button--small"
+              className="button button--secondary"
               title="Disable Motors"
             >
               Off
@@ -476,14 +476,14 @@ function App() {
                 <button
                   onClick={handlePenUp}
                   disabled={!state.connected}
-                  className="button button--secondary button--small"
+                  className="button button--secondary"
                 >
                   Pen Up
                 </button>
                 <button
                   onClick={handlePenDown}
                   disabled={!state.connected}
-                  className="button button--secondary button--small"
+                  className="button button--secondary"
                 >
                   Pen Down
                 </button>
