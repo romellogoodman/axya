@@ -60,17 +60,3 @@ reference/         # Vendored saxi (nornagon + alexrudd2 forks) for comparison
 </div>
 ```
 
-## CSS Custom Properties
-
-Available variables defined in `src/App.scss`:
-
-## Environment Variables
-
-- Copy `.env.example` to `.env.local` for local configuration
-- All Vite environment variables must be prefixed with `VITE_`
-- Access in code: `import.meta.env.VITE_API_URL`
-
-Example:
-```jsx
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-```
