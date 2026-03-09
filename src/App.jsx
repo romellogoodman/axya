@@ -19,11 +19,14 @@ function App() {
   const device = plotter?.device;
 
   // Effect: Persist settings to localStorage
-  useEffect(() => {
-    const toSave = {};
-    for (const key of PERSISTED_KEYS) toSave[key] = state[key];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  }, PERSISTED_KEYS.map((k) => state[k])); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(
+    () => {
+      const toSave = {};
+      for (const key of PERSISTED_KEYS) toSave[key] = state[key];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    },
+    PERSISTED_KEYS.map((k) => state[k])
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect: Scale paths when paper size, margin, plotter, or fit page changes
   useEffect(() => {
@@ -259,16 +262,26 @@ function App() {
         {/* Sidebar */}
         <aside className="app__sidebar">
           {/* Connection */}
-          <button
-            onClick={state.connected ? handleDisconnect : handleConnect}
-            className={`connection-btn ${state.connected ? "connection-btn--connected" : ""}`}
-          >
-            <span className="connection-btn__dot"></span>
-            <span>{state.connected ? "Connected" : "Not Connected"}</span>
-          </button>
+          <div className="connection-group">
+            <button
+              onClick={state.connected ? handleDisconnect : handleConnect}
+              className={`connection-btn ${state.connected ? "connection-btn--connected" : ""}`}
+            >
+              <span className="connection-btn__dot"></span>
+              <span>{state.connected ? "Connected" : "Not Connected"}</span>
+            </button>
+            <button
+              onClick={handleDisableMotors}
+              disabled={!state.connected}
+              className="button button--secondary button--small"
+              title="Disable Motors"
+            >
+              Off
+            </button>
+          </div>
 
           {/* File Upload Section */}
-          <section className="panel">
+          {/* <section className="panel">
             <h2 className="panel__title">File</h2>
             <div className="panel__content">
               <input
@@ -286,14 +299,14 @@ function App() {
                 <p className="panel__info">{state.svgFileName}</p>
               )}
             </div>
-          </section>
+          </section> */}
 
           {/* Plotter Selection */}
           <section className="panel">
             <h2 className="panel__title">Plotter</h2>
             <div className="panel__content">
               <div className="form-group">
-                <label htmlFor="plotter">Model</label>
+                {/* <label htmlFor="plotter">Model</label> */}
                 <select
                   id="plotter"
                   value={state.plotter}
@@ -312,11 +325,6 @@ function App() {
                   ))}
                 </select>
               </div>
-              {Plotters[state.plotter] && (
-                <p className="panel__info">
-                  Max: {Math.round(Plotters[state.plotter].maxWidth / 25.4 * 100) / 100}" × {Math.round(Plotters[state.plotter].maxHeight / 25.4 * 100) / 100}"
-                </p>
-              )}
             </div>
           </section>
 
@@ -351,39 +359,43 @@ function App() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="paper-width">Width (in)</label>
-                <input
-                  type="number"
-                  id="paper-width"
-                  value={Math.round((state.paperWidth / 25.4) * 100) / 100}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_PAPER_WIDTH",
-                      width: Number(e.target.value) * 25.4,
-                    })
-                  }
-                  min={0.1}
-                  step={0.1}
-                  className="input"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="paper-height">Height (in)</label>
-                <input
-                  type="number"
-                  id="paper-height"
-                  value={Math.round((state.paperHeight / 25.4) * 100) / 100}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_PAPER_HEIGHT",
-                      height: Number(e.target.value) * 25.4,
-                    })
-                  }
-                  min={0.1}
-                  step={0.1}
-                  className="input"
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="paper-width">Width (in)</label>
+                  <input
+                    type="number"
+                    id="paper-width"
+                    value={Math.round((state.paperWidth / 25.4) * 100) / 100}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_PAPER_WIDTH",
+                        width: Number(e.target.value) * 25.4,
+                      })
+                    }
+                    min={0.1}
+                    max={Math.round((plotter?.maxWidth / 25.4) * 100) / 100}
+                    step={0.1}
+                    className="input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="paper-height">Height (in)</label>
+                  <input
+                    type="number"
+                    id="paper-height"
+                    value={Math.round((state.paperHeight / 25.4) * 100) / 100}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_PAPER_HEIGHT",
+                        height: Number(e.target.value) * 25.4,
+                      })
+                    }
+                    min={0.1}
+                    max={Math.round((plotter?.maxHeight / 25.4) * 100) / 100}
+                    step={0.1}
+                    className="input"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -405,7 +417,7 @@ function App() {
                 />
               </div>
 
-              <div className="form-group form-group--checkbox">
+              {/* <div className="form-group form-group--checkbox">
                 <input
                   type="checkbox"
                   id="fit-page"
@@ -415,7 +427,7 @@ function App() {
                   }
                 />
                 <label htmlFor="fit-page">Fit to page</label>
-              </div>
+              </div> */}
             </div>
           </section>
 
@@ -423,42 +435,41 @@ function App() {
           <section className="panel">
             <h2 className="panel__title">Pen Height</h2>
             <div className="panel__content">
-              <div className="form-group">
-                <label htmlFor="pen-up">Up Position: {state.penUpHeight}%</label>
-                <input
-                  type="range"
-                  id="pen-up"
-                  value={state.penUpHeight}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_PEN_UP_HEIGHT",
-                      height: Number(e.target.value),
-                    })
-                  }
-                  min={0}
-                  max={100}
-                  className="range"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="pen-down">
-                  Down Position: {state.penDownHeight}%
-                </label>
-                <input
-                  type="range"
-                  id="pen-down"
-                  value={state.penDownHeight}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_PEN_DOWN_HEIGHT",
-                      height: Number(e.target.value),
-                    })
-                  }
-                  min={0}
-                  max={100}
-                  className="range"
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="pen-up">Up (%)</label>
+                  <input
+                    type="number"
+                    id="pen-up"
+                    value={state.penUpHeight}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_PEN_UP_HEIGHT",
+                        height: Number(e.target.value),
+                      })
+                    }
+                    min={0}
+                    max={100}
+                    className="input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="pen-down">Down (%)</label>
+                  <input
+                    type="number"
+                    id="pen-down"
+                    value={state.penDownHeight}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_PEN_DOWN_HEIGHT",
+                        height: Number(e.target.value),
+                      })
+                    }
+                    min={0}
+                    max={100}
+                    className="input"
+                  />
+                </div>
               </div>
 
               <div className="button-group">
@@ -477,20 +488,6 @@ function App() {
                   Pen Down
                 </button>
               </div>
-            </div>
-          </section>
-
-          {/* Motor Control */}
-          <section className="panel">
-            <h2 className="panel__title">Motors</h2>
-            <div className="panel__content">
-              <button
-                onClick={handleDisableMotors}
-                disabled={!state.connected}
-                className="button button--secondary"
-              >
-                Disable Motors
-              </button>
             </div>
           </section>
 
@@ -518,17 +515,14 @@ function App() {
           {/* Plot Controls */}
           <div className="plot-controls">
             {state.plotting ? (
-              <button
-                onClick={handleStop}
-                className="button button--danger button--large"
-              >
+              <button onClick={handleStop} className="button button--danger">
                 Stop
               </button>
             ) : (
               <button
                 onClick={handlePlot}
                 disabled={!state.connected || !state.plan}
-                className="button button--primary button--large"
+                className="button button--primary"
               >
                 Plot
               </button>
