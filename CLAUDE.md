@@ -2,7 +2,7 @@
 
 Browser-based AxiDraw pen plotter controller. React + Vite + SCSS. WebSerial only — no server.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full data flow, EBB protocol notes, and comparison with the vendored saxi reference implementations.
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full data flow, EBB protocol notes, and comparison with the vendored saxi reference implementations.
 
 ## File Structure
 
@@ -17,7 +17,9 @@ src/
     planning.js    # Constant-acceleration motion planner
     svg.js         # SVG parse + scale + sort
     vec.js         # 2D vector math
-reference/         # Vendored saxi (nornagon + alexrudd2 forks) for comparison
+docs/
+  ARCHITECTURE.md  # Data flow, EBB protocol notes, saxi comparison
+  reference-apps/  # Vendored saxi (nornagon + alexrudd2 forks) for comparison
 ```
 
 - Pure/library code lives in `src/lib/`, React components at `src/` root.
