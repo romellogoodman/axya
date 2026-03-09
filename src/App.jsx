@@ -2,7 +2,7 @@ import { useReducer, useRef, useEffect, useCallback, useState } from "react";
 import "./App.scss";
 
 import { EBB } from "./lib/ebb.js";
-import { parseSVG, scalePaths, PaperSizes } from "./lib/svg.js";
+import { parseSVG, scalePaths, PaperSizes, Plotters } from "./lib/svg.js";
 import { createPlan, formatDuration } from "./lib/planning.js";
 import { reducer, initialState, PERSISTED_KEYS, STORAGE_KEY } from "./state.js";
 import { Preview } from "./Preview.jsx";
@@ -13,8 +13,10 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Get paper dimensions
+  // Get paper dimensions and device config
   const paper = { width: state.paperWidth, height: state.paperHeight };
+  const plotter = Plotters[state.plotter];
+  const device = plotter?.device;
 
   // Effect: Persist settings to localStorage
   useEffect(() => {
@@ -23,9 +25,9 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }, PERSISTED_KEYS.map((k) => state[k])); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Effect: Scale paths when paper size, margin, or fit page changes
+  // Effect: Scale paths when paper size, margin, plotter, or fit page changes
   useEffect(() => {
-    if (!state.rawPaths) return;
+    if (!state.rawPaths || !device) return;
 
     const scaled = scalePaths(state.rawPaths, {
       paperWidth: paper.width,
@@ -35,6 +37,7 @@ function App() {
       svgWidth: state.svgWidth,
       svgHeight: state.svgHeight,
       viewBox: state.svgViewBox,
+      device,
     });
 
     dispatch({ type: "SET_SCALED_PATHS", paths: scaled });
@@ -48,15 +51,17 @@ function App() {
     state.svgViewBox,
     paper.width,
     paper.height,
+    device,
   ]);
 
-  // Effect: Create plan when scaled paths or pen heights change
+  // Effect: Create plan when scaled paths, pen heights, or plotter change
   useEffect(() => {
-    if (!state.scaledPaths || state.scaledPaths.length === 0) return;
+    if (!state.scaledPaths || state.scaledPaths.length === 0 || !device) return;
 
     const plan = createPlan(state.scaledPaths, {
       penUpHeight: state.penUpHeight,
       penDownHeight: state.penDownHeight,
+      device,
     });
 
     dispatch({
@@ -64,7 +69,7 @@ function App() {
       plan,
       duration: plan.duration(),
     });
-  }, [state.scaledPaths, state.penUpHeight, state.penDownHeight]);
+  }, [state.scaledPaths, state.penUpHeight, state.penDownHeight, device]);
 
   // Complete the connection handshake after obtaining an EBB instance
   const finishConnect = useCallback(async (ebb) => {
@@ -207,23 +212,23 @@ function App() {
 
   // Handler: Pen up
   const handlePenUp = useCallback(async () => {
-    if (!state.ebb) return;
+    if (!state.ebb || !device) return;
     try {
-      await state.ebb.penUp(state.penUpHeight);
+      await state.ebb.penUp(state.penUpHeight, device);
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: err.message });
     }
-  }, [state.ebb, state.penUpHeight]);
+  }, [state.ebb, state.penUpHeight, device]);
 
   // Handler: Pen down
   const handlePenDown = useCallback(async () => {
-    if (!state.ebb) return;
+    if (!state.ebb || !device) return;
     try {
-      await state.ebb.penDown(state.penDownHeight);
+      await state.ebb.penDown(state.penDownHeight, device);
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: err.message });
     }
-  }, [state.ebb, state.penDownHeight]);
+  }, [state.ebb, state.penDownHeight, device]);
 
   // Handler: Disable motors
   const handleDisableMotors = useCallback(async () => {
@@ -279,6 +284,38 @@ function App() {
               </label>
               {state.svgFileName && (
                 <p className="panel__info">{state.svgFileName}</p>
+              )}
+            </div>
+          </section>
+
+          {/* Plotter Selection */}
+          <section className="panel">
+            <h2 className="panel__title">Plotter</h2>
+            <div className="panel__content">
+              <div className="form-group">
+                <label htmlFor="plotter">Model</label>
+                <select
+                  id="plotter"
+                  value={state.plotter}
+                  onChange={(e) => {
+                    dispatch({
+                      type: "SET_PLOTTER",
+                      plotter: e.target.value,
+                    });
+                  }}
+                  className="select"
+                >
+                  {Object.keys(Plotters).map((plotter) => (
+                    <option key={plotter} value={plotter}>
+                      {plotter}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {Plotters[state.plotter] && (
+                <p className="panel__info">
+                  Max: {Math.round(Plotters[state.plotter].maxWidth / 25.4 * 100) / 100}" × {Math.round(Plotters[state.plotter].maxHeight / 25.4 * 100) / 100}"
+                </p>
               )}
             </div>
           </section>
