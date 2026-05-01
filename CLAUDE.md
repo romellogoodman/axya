@@ -1,73 +1,42 @@
-# Project Guidelines
+# axya
 
-Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, Express backend, drives the plotter via the `nextdraw` CLI subprocess.
+Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, Express backend; the backend drives the plotter by spawning the `nextdraw` CLI — axya itself contains no motion-planning or serial code.
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, the REST API surface, and the pause/resume mechanism.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, REST API, state machine, and pause/resume mechanics.
 
-## File Structure
+## Working in this repo
+
+| Command | Does |
+|---|---|
+| `npm run dev` | Backend (`:4000`) + Vite (`:8080`) together via concurrently |
+| `npm run server` / `npm run client` | One side only |
+| `npm run lint` | ESLint over `src/` and `server/` — must pass before commit |
+| `npm run build` | Production Vite build |
+
+Verifying changes: the backend can be exercised with `curl http://localhost:4000/api/status` (and the other routes in ARCHITECTURE.md) without a plotter attached. Anything that actually moves hardware — `plot`, `pen`, `jog`, `home` — requires `nextdraw` on PATH and a USB-connected machine; there is no mock.
+
+## File map
 
 ```
 server/
-  index.js         # Express app: routes, SSE, upload, config, layer extraction
-  plotter.js       # PlotterManager: state machine + nextdraw subprocess wrangling
+  index.js         # Express routes, SSE, upload, config allowlist, layer extraction
+  plotter.js       # PlotterManager state machine + nextdraw subprocess handling
 db/
-  nextdraw.conf.py # nextdraw-native config (edited via the Configure modal)
+  nextdraw.conf.py # nextdraw-native config; edited via Configure modal
   uploads/         # Persisted SVGs (git-ignored)
 src/
-  App.jsx          # Root: reducer wiring, SSE subscription, handlers, sidebar JSX
-  Preview.jsx      # Canvas preview (travel area + SVG outline + paths, mm coords)
-  FileLibrary.jsx  # File picker modal
-  ConfigModal.jsx  # Schema-driven nextdraw config form
-  JogPad.jsx       # XY jog arrow pad + home + pen up/down
-  LogPanel.jsx     # Scrolling command log
-  Modal.jsx        # Shared modal shell
-  state.js         # initialState, reducer, localStorage persistence
+  App.jsx          # Root orchestration: reducer, SSE subscription, handlers, sidebar
+  state.js         # initialState + reducer + localStorage persistence (pure)
+  Preview.jsx      # Canvas: travel area + SVG outline + paths (mm coords)
+  FileLibrary.jsx ConfigModal.jsx JogPad.jsx LogPanel.jsx Modal.jsx
+  lib/api.js       # fetch wrappers + SSE subscribeStatus (auto-reconnect)
+  lib/svg.js       # parseSVG via flatten-svg → mm polylines; PLOTTER_MODELS table
   App.scss         # All styles
-  lib/
-    api.js         # fetch wrappers + SSE subscribeStatus
-    svg.js         # parseSVG (flatten-svg → mm polylines), PLOTTER_MODELS
-docs/
-  ARCHITECTURE.md
-  reference-apps/  # Vendored saxi sources for reference
 ```
 
-- Pure/library code lives in `src/lib/`, React components at `src/` root.
-- New React components go in their own file at `src/` — keep App.jsx for orchestration.
-- All styles go in `src/App.scss`.
-- Backend code stays under `server/`. It must not import from `src/`.
+## Conventions
 
-## CSS/SCSS Conventions
-
-- Use BEM (Block Element Modifier) naming methodology for CSS classes
-- Follow the pattern: `.block__element--modifier`
-- Use SCSS nesting with `&` for better organization
-- Leverage CSS custom properties for theming
-
-### BEM Example
-
-```scss
-.card {
-  background: var(--color-bg);
-  padding: var(--spacing-2x);
-
-  &__header {
-    border-bottom: 1px solid var(--color-text-light);
-  }
-
-  &__title {
-    font-size: var(--font-size-xl);
-
-    &--large {
-      font-size: calc(var(--font-size-xl) * 1.5);
-    }
-  }
-}
-```
-
-```jsx
-<div className="card">
-  <div className="card__header">
-    <h2 className="card__title card__title--large">Title</h2>
-  </div>
-</div>
-```
+- New React components: own file at `src/` root. App.jsx is orchestration only.
+- Pure/non-React helpers: `src/lib/`. Backend never imports from `src/`.
+- All styles in `src/App.scss`, BEM naming (`.block__element--modifier`), SCSS `&` nesting, CSS custom properties for theme tokens. Match existing blocks for examples.
+- Config keys added to `ConfigModal.jsx` SCHEMA must also be added to the `CONFIG_NUM_KEYS` / `CONFIG_BOOL_KEYS` allowlist in `server/index.js` — the config file is executed as Python, so unvalidated keys are a code-injection vector.
