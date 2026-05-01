@@ -1,0 +1,285 @@
+/**
+ * axya backend — Express server that drives the `nextdraw` CLI.
+ *
+ * Routes under /api:
+ *   GET  /status, /events (SSE), /logs
+ *   GET  /files, /files/:name, /files/:name/layers
+ *   POST /upload, DELETE /files/:name
+ *   POST /plot, /pause, /resume, /stop, /home
+ *   POST /pen/:dir, /jog
+ *   GET  /estimate/:name
+ *   GET/POST /config
+ */
+
+import express from "express";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { PlotterManager } from "./plotter.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
+const DB_DIR = path.join(ROOT, "db");
+const UPLOADS_DIR = path.join(DB_DIR, "uploads");
+const CONFIG_PATH = path.join(DB_DIR, "nextdraw.conf.py");
+
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const PORT = process.env.AXYA_PORT || 4000;
+
+const plotter = new PlotterManager({
+  configPath: CONFIG_PATH,
+  uploadsDir: UPLOADS_DIR,
+});
+
+const app = express();
+app.use(express.json());
+app.use(express.text({ type: "image/svg+xml", limit: "25mb" }));
+
+// ---- helpers ----
+function uniqueUploadName(original) {
+  const base = path.basename(original).replace(/[^\w.\- ]+/g, "_");
+  let name = base;
+  let i = 1;
+  while (fs.existsSync(path.join(UPLOADS_DIR, name))) {
+    const ext = path.extname(base);
+    name = `${path.basename(base, ext)}-${i++}${ext}`;
+  }
+  return name;
+}
+
+function safeUploadPath(name) {
+  const p = path.join(UPLOADS_DIR, path.basename(name));
+  if (!p.startsWith(UPLOADS_DIR)) throw new Error("bad path");
+  return p;
+}
+
+function listFiles() {
+  return fs
+    .readdirSync(UPLOADS_DIR)
+    .filter((f) => f.toLowerCase().endsWith(".svg"))
+    .map((f) => {
+      const stat = fs.statSync(path.join(UPLOADS_DIR, f));
+      return { name: f, size: stat.size, mtime: stat.mtimeMs };
+    })
+    .sort((a, b) => b.mtime - a.mtime);
+}
+
+// Inkscape layer enumeration: <g inkscape:groupmode="layer" inkscape:label="N - name">
+const LAYER_RE =
+  /<g\b[^>]*inkscape:groupmode\s*=\s*["']layer["'][^>]*inkscape:label\s*=\s*["']([^"']+)["']/gi;
+
+function extractLayers(svgString) {
+  const layers = [];
+  let m;
+  while ((m = LAYER_RE.exec(svgString))) {
+    const label = m[1];
+    const numMatch = label.match(/^\s*(\d+)/);
+    layers.push({
+      label,
+      number: numMatch ? Number(numMatch[1]) : null,
+    });
+  }
+  return layers;
+}
+
+function wrap(fn) {
+  return async (req, res) => {
+    try {
+      const result = await fn(req, res);
+      if (result !== undefined && !res.headersSent) res.json(result);
+    } catch (err) {
+      plotter.log(err.message, "error");
+      res.status(400).json({ error: err.message });
+    }
+  };
+}
+
+// ---- status / events / logs ----
+app.get("/api/status", (req, res) => res.json(plotter.status()));
+
+app.get("/api/logs", (req, res) => res.json(plotter.logs));
+
+app.get("/api/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  let lastSent = "";
+  const send = () => {
+    const status = plotter.status();
+    const payload = JSON.stringify(status);
+    if (payload !== lastSent) {
+      lastSent = payload;
+      res.write(`data: ${payload}\n\n`);
+    }
+  };
+  send();
+
+  plotter.on("change", send);
+  const keepalive = setInterval(() => res.write(": keepalive\n\n"), 15000);
+
+  req.on("close", () => {
+    plotter.off("change", send);
+    clearInterval(keepalive);
+  });
+});
+
+// ---- files ----
+app.get("/api/files", (req, res) => res.json(listFiles()));
+
+app.post(
+  "/api/upload",
+  wrap((req) => {
+    const original = req.query.name;
+    if (!original || typeof req.body !== "string" || !req.body.length) {
+      throw new Error("Missing file name or body");
+    }
+    const name = uniqueUploadName(original);
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), req.body);
+    plotter.log(`Uploaded ${name}`);
+    return { name };
+  })
+);
+
+app.get(
+  "/api/files/:name",
+  wrap((req, res) => {
+    const p = safeUploadPath(req.params.name);
+    res
+      .set("Content-Security-Policy", "default-src 'none'; sandbox")
+      .type("image/svg+xml")
+      .send(fs.readFileSync(p, "utf8"));
+  })
+);
+
+app.delete(
+  "/api/files/:name",
+  wrap((req) => {
+    const p = safeUploadPath(req.params.name);
+    fs.unlinkSync(p);
+    plotter.log(`Deleted ${req.params.name}`);
+    return { ok: true };
+  })
+);
+
+app.get(
+  "/api/files/:name/layers",
+  wrap((req) => {
+    const svg = fs.readFileSync(safeUploadPath(req.params.name), "utf8");
+    return extractLayers(svg);
+  })
+);
+
+// ---- plot control ----
+app.post(
+  "/api/plot",
+  wrap((req) => {
+    const { file, layer } = req.body || {};
+    if (!file) throw new Error("file is required");
+    plotter.plot(file, { layer });
+    return plotter.status();
+  })
+);
+
+app.post("/api/pause", wrap(() => (plotter.pause(), plotter.status())));
+app.post("/api/resume", wrap(() => (plotter.resume(), plotter.status())));
+app.post("/api/stop", wrap(() => (plotter.stop(), plotter.status())));
+app.post("/api/home", wrap(async () => (await plotter.home(), plotter.status())));
+
+app.post(
+  "/api/pen/:dir",
+  wrap(async (req) => {
+    await plotter.pen(req.params.dir);
+    return { ok: true };
+  })
+);
+
+app.post(
+  "/api/jog",
+  wrap(async (req) => {
+    const { dx = 0, dy = 0 } = req.body || {};
+    await plotter.jog(Number(dx), Number(dy));
+    return { ok: true };
+  })
+);
+
+app.get(
+  "/api/estimate/:name",
+  wrap((req) => {
+    const layer = req.query.layer != null ? Number(req.query.layer) : null;
+    return plotter.estimate(req.params.name, layer);
+  })
+);
+
+// ---- config ----
+app.get(
+  "/api/config",
+  wrap(() => {
+    const text = fs.readFileSync(CONFIG_PATH, "utf8");
+    const config = {};
+    for (const line of text.split("\n")) {
+      const m = line.match(/^\s*(\w+)\s*=\s*(.+?)\s*$/);
+      if (!m) continue;
+      const [, key, raw] = m;
+      if (raw === "True") config[key] = true;
+      else if (raw === "False") config[key] = false;
+      else if (/^-?\d+(\.\d+)?$/.test(raw)) config[key] = Number(raw);
+      else config[key] = raw.replace(/^["']|["']$/g, "");
+    }
+    return config;
+  })
+);
+
+// The config file is executed as Python by `nextdraw --config`, so both keys
+// and values must be strictly validated to prevent code injection.
+const CONFIG_BOOL_KEYS = new Set([
+  "const_speed",
+  "random_start",
+  "hiding",
+  "auto_rotate",
+]);
+const CONFIG_NUM_KEYS = new Set([
+  "model",
+  "penlift",
+  "pen_pos_up",
+  "pen_pos_down",
+  "pen_rate_raise",
+  "pen_rate_lower",
+  "pen_delay_up",
+  "pen_delay_down",
+  "speed_pendown",
+  "speed_penup",
+  "accel",
+  "reordering",
+  "copies",
+  "page_delay",
+  "resolution",
+]);
+
+app.post(
+  "/api/config",
+  wrap((req) => {
+    const config = req.body || {};
+    const lines = [];
+    for (const [k, v] of Object.entries(config)) {
+      if (CONFIG_BOOL_KEYS.has(k)) {
+        lines.push(`${k} = ${v ? "True" : "False"}`);
+      } else if (CONFIG_NUM_KEYS.has(k)) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw new Error(`Invalid value for ${k}`);
+        lines.push(`${k} = ${n}`);
+      } else {
+        throw new Error(`Unknown config key: ${k}`);
+      }
+    }
+    fs.writeFileSync(CONFIG_PATH, lines.join("\n") + "\n");
+    plotter.log("Config saved");
+    return { ok: true };
+  })
+);
+
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(`axya backend listening on http://127.0.0.1:${PORT}`);
+});

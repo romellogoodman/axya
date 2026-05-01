@@ -1,131 +1,103 @@
 # Architecture
 
-**axya** is a browser-only AxiDraw controller. It talks directly to the plotter over USB via the [WebSerial API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API) — no server, no Node, no installation. The trade-off is Chrome/Edge only.
+**axya** is a local web UI for AxiDraw and Bantam NextDraw plotters. It consists of a React frontend and a small Express backend, both started together with `npm run dev`. The backend does not speak to the plotter directly — every operation spawns Bantam's official [`nextdraw` CLI](https://bantam.tools/nd_cli/), which owns all SVG parsing, motion planning, path optimization, and EBB serial communication.
 
 ## Lineage
 
-axya is a simplified port of [saxi](https://github.com/nornagon/saxi) (original, archived) and its [active fork](https://github.com/alexrudd2/saxi). Both are vendored under `reference/` for comparison.
+Earlier versions of axya were a browser-only WebSerial port of [saxi](https://github.com/nornagon/saxi). The current architecture is modeled on [@gre's penplotter-web](https://github.com/gre/penplotter-web), which wraps `axicli` in a FastAPI server. axya uses Node/Express instead of Python, and `nextdraw` instead of `axicli` so that Bantam NextDraw hardware is supported alongside AxiDraw.
 
-saxi has two operating modes selected at build time:
-
-- **Server mode** — an Express + WebSocket server drives `node-serialport`; the browser is a thin client. Useful for tethering the plotter to a Raspberry Pi and controlling it from any device on the network.
-- **WebSerial mode** (`IS_WEB=1`) — static files only; the browser drives the EBB directly.
-
-**axya implements only the WebSerial mode.** There is no server, no `SaxiDriver`/`WebSerialDriver` abstraction layer, no serialization of plans over the wire.
+saxi sources are still vendored under `docs/reference-apps/` for reference.
 
 ## Data flow
 
 ```
-  SVG file (drop / upload)
-           │
-           ▼
-   parseSVG()  ──────────  flatten-svg → polylines as {x,y}[][]
-           │
-           ▼  state.rawPaths
-   scalePaths()  ─────────  fit-to-paper + margin, mm → steps,
-           │                optimize-paths reorder (minimize pen-up travel)
-           │
-           ▼  state.scaledPaths
-   createPlan()  ─────────  constant-accel velocity profiles,
-           │                interleave XYMotion / PenMotion
-           │
-           ▼  state.plan
-   EBB.executePlan()  ────  stream LM / S2 commands over serial
+ SVG file
+    │  drag-drop / upload
+    ▼
+ Browser ──POST /api/upload──▶ Express ── writes ──▶ db/uploads/<file>.svg
+    │
+    │  GET /api/files/<file> ─▶ parseSVG() client-side ─▶ canvas preview
+    │
+    │  POST /api/plot {file, layer?}
+    ▼
+ Express ── spawn ──▶ nextdraw <file> --config db/nextdraw.conf.py
+                               --output_file <file> --progress --report_time
+    │                          [--mode layers --layer N]
+    │  stderr (tqdm) ─▶ regex parse % ─▶ PlotterManager.progress
+    │  stdout/stderr lines ─▶ PlotterManager.logs (ring buffer)
+    ▼
+ Browser ◀── SSE /api/events ── status_dict on change ──── PlotterManager
 ```
 
-Each stage invalidates downstream stages: changing paper size nulls `scaledPaths` and `plan`, changing pen heights nulls only `plan`. Two effects in `App.jsx` watch these dependencies and recompute.
+### State machine
+
+`PlotterManager` (server/plotter.js) holds one of `idle | plotting | paused | error` plus `currentFile`, `progress`, `elapsed`, `canHome`, and a 200-line log ring. It emits `change` events; the SSE endpoint pushes `status()` to clients whenever that fires.
+
+### Pause/Resume
+
+Pause sends `SIGINT` to the `nextdraw` process group. `nextdraw` traps it, writes the current position into the SVG's `<plotdata>` element (because `--output_file` points back at the same file), and exits. Resume is a fresh subprocess with `--mode res_plot`, which reads that saved state and continues from where it stopped. This means **pause/resume survives a server restart or browser reload** — the state lives in the SVG file on disk.
+
+Stop is `SIGKILL`. Home is `--mode res_home`, which uses the same saved state to plan a return-to-origin move.
+
+### Manual commands
+
+Pen up/down and XY jog spawn `nextdraw` with `--mode manual --manual_cmd raise_pen|lower_pen|walk_mmx|walk_mmy`. Manual commands need a file argument even though they don't read it, so the server writes a 1×1 dummy SVG to `/tmp` at startup.
 
 ## Files
 
-### UI
+### Backend
 
 | File | Role |
 |---|---|
-| `src/App.jsx` | Root component. Owns the reducer, pipeline effects, EBB connection handlers, and sidebar JSX. |
-| `src/Preview.jsx` | Canvas preview. Draws paper outline, margin guide, paths, and a green progress overlay during plotting. Owns its own resize observer and handles DPR scaling. Props-only, no context. |
-| `src/state.js` | `initialState`, `reducer`, and localStorage persistence. Pure — no React imports. |
-| `src/App.scss` | All styles. BEM naming. |
+| `server/index.js` | Express app. REST routes, SSE endpoint, file upload/list/delete, config read/write, Inkscape layer extraction. |
+| `server/plotter.js` | `PlotterManager` — state machine, subprocess spawning, log buffer, progress parsing. |
+| `db/nextdraw.conf.py` | nextdraw-native config file (Python `key = value` syntax). Edited via the Configure modal. |
+| `db/uploads/` | Uploaded SVGs. Persists across restarts. Git-ignored. |
 
-### Library
+### Frontend
 
 | File | Role |
 |---|---|
-| `src/lib/svg.js` | `parseSVG` (DOMParser → `flatten-svg`), `scalePaths` (fit/margin/sort → step coords), `PaperSizes` presets. |
-| `src/lib/planning.js` | Constant-acceleration motion planner. `Block` / `XYMotion` / `PenMotion` / `Plan` classes, `createPlan()` entry point, `Device` hardware constants. Ported from [fogleman/axi](https://github.com/fogleman/axi/blob/master/axi/planner.py). |
-| `src/lib/ebb.js` | WebSerial driver for the EiBotBoard. Connection (incl. auto-reconnect), firmware queries, motor/servo commands, `executePlan` with abort handling. |
-| `src/lib/vec.js` | 2D vector math (`vadd`, `vsub`, `vmul`, `vnorm`, `vdot`, `vlen`). |
+| `src/App.jsx` | Root component. Reducer wiring, SSE subscription, handlers, sidebar JSX, Web Notifications. |
+| `src/state.js` | `initialState`, `reducer`, localStorage persistence. |
+| `src/Preview.jsx` | Canvas preview — plotter travel area + SVG outline + paths in mm. Owns resize observer + DPR. |
+| `src/FileLibrary.jsx` | File picker modal with thumbnails, upload, delete. |
+| `src/ConfigModal.jsx` | Schema-driven form over the nextdraw config keys. |
+| `src/JogPad.jsx` | Arrow-pad XY jog + home + pen up/down. |
+| `src/LogPanel.jsx` | Scrolling command log with timestamps. |
+| `src/Modal.jsx` | Shared modal shell. |
+| `src/lib/api.js` | Fetch wrappers + `subscribeStatus` SSE helper with auto-reconnect. |
+| `src/lib/svg.js` | `parseSVG` (DOMParser + flatten-svg → mm polylines), `PLOTTER_MODELS` travel-area table. |
+| `src/App.scss` | All styles. BEM. |
 
-## Motion planning
+## REST API
 
-`createPlan` builds a `Plan` — a flat list of `Motion` objects that alternate between moving the pen (`XYMotion`) and raising/lowering it (`PenMotion`):
-
-```
-[ travel-to-path₁, pen-down, draw-path₁, pen-up,
-  travel-to-path₂, pen-down, draw-path₂, pen-up,
-  ...
-  travel-home ]
-```
-
-Each `XYMotion` is a list of `Block`s. A `Block` is a straight-line segment with constant acceleration: `{accel, duration, vInitial, p1, p2}`. `constantAccelerationPlan()` fits each polyline segment with either a **triangle** (accelerate then decelerate) or **trapezoid** (accelerate, cruise at vMax, decelerate) velocity profile.
-
-**Corner velocity** at each vertex is derived from the angle between adjacent segments (grbl-style cornering): sharp corners force a near-stop, gentle curves stay fast. If a segment is too short to decelerate in time for the next corner, the planner backtracks and lowers the *previous* segment's entry velocity.
-
-Two acceleration profiles:
-- **Pen down** (drawing) — slower, with cornering: `accel=200mm/s², vMax=50mm/s`
-- **Pen up** (travel) — faster, no cornering: `accel=400mm/s², vMax=200mm/s`
-
-All units convert to **steps** before planning (`stepsPerMm = 5` for AxiDraw v3).
-
-## EBB serial protocol
-
-The EiBotBoard is the USB motion controller inside the AxiDraw. Commands are `\r`-terminated ASCII; responses are `OK` or `!`-prefixed errors. [Full command reference](https://evil-mad.github.io/EggBot/ebb.html).
-
-Commands axya uses:
-
-| Command | Purpose |
-|---|---|
-| `V` | Query firmware version string |
-| `QC` | Query voltages (detect stepper power) |
-| `QM` | Query motor status (poll for idle) |
-| `EM,m,m` | Enable/disable motors; `m` is microstepping mode (1 = 1/16, 0 = off) |
-| `LM,r₁,s₁,Δr₁,r₂,s₂,Δr₂` | Low-level move — constant-acceleration step timing computed on-board. Requires firmware ≥ 2.5.3. Each `Block` becomes one `LM`. |
-| `S2,pos,pin,rate,delay` | Set servo (pen lift). `pos` is a PWM value; `Device.penPctToPos()` maps 0–100% to the servo range. |
-| `SR,timeout,state` | Servo power timeout (firmware ≥ 2.6.0). Keeps the servo from buzzing when idle. |
-| `HM,rate` | Home the carriage to origin at `rate` steps/sec. Used on cancel. |
-
-**Sub-step error accumulation:** `LM` takes integer step counts, but `Block` positions are floats. `this.error` carries the fractional remainder across moves so rounding doesn't drift over a long plot.
-
-**Coordinate transform:** AxiDraw uses a CoreXY belt layout. Cartesian `(x, y)` steps map to motor-axis steps as `(x+y, x−y)`. `moveWithAcceleration` handles this.
-
-**Auto-reconnect:** `navigator.serial.getPorts()` returns previously-paired devices without a user gesture. `EBB.tryAutoConnect()` filters for the EBB's VID/PID (`0x04d8:0xfd92`) and opens it on mount.
-
-**Cancel behavior:** `executePlan` tracks whether the pen is up. On abort: lifts pen if down → `HM,4000` to send the carriage home → polls `QM` until idle → disables motors.
-
-## What saxi has that axya doesn't
-
-See `reference/alexrudd2-saxi/src/` for implementations.
-
-| Feature | saxi file | Why you might want it |
+| Method | Path | Body / Notes |
 |---|---|---|
-| **Web Worker planning** | `ui.tsx` `usePlan()`, `background-planner.ts` | Planning runs off the main thread so the UI stays responsive on large SVGs. axya plans synchronously — fine until it isn't. |
-| **Pause/Resume** | `drivers.ts` `pause()` | The plot loop awaits an unresolved Promise but only when `penIsUp` — never pauses mid-stroke. Useful for long plots. |
-| **Rejigger** | `ui.tsx` `attemptRejigger()` | If only pen heights changed, swap servo positions in the existing plan instead of replanning from scratch. |
-| **Layer filtering** | `ui.tsx` `LayerSelector`, `massager.ts` | Filter paths by SVG `stroke` color or `groupId`. Multi-select which layers to plot. Essential for multi-pen workflows. |
-| **Crop to margins** | `util.ts` `cropToMargins()` | Liang-Barsky segment-AABB clipping. When `fitPage` is off, trims anything outside the margin instead of plotting it. |
-| **Path joining / point dedup** | `massager.ts` | `optimize-paths` `merge()` joins paths whose endpoints are within a radius (fewer pen lifts). `dedupPoints()` collapses near-duplicate vertices. |
-| **Live pen position** | `ui.tsx` `PlanPreview` | `requestAnimationFrame` + `motion.instant(t)` interpolates a crosshair between progress events. axya just recolors completed paths. |
-| **Hardware variants** | `planning.ts` `Device()`, `ebb.ts` | Different servo PWM ranges for v3 / brushless / NextDraw. Brushless uses servo output pin 5 instead of 4, and shorter pen lift timing. |
-| **Time remaining** | `ui.tsx` `TimeLeft` | `plan.duration(fromMotionIdx)` minus elapsed-since-last-progress-event. |
-| **`XM` fallback** | `ebb.ts` `executeXYMotionWithXM()` | 15ms-timestep constant-velocity moves for firmware < 2.5.3. axya assumes `LM` exists. |
+| GET | `/api/status` | Current `PlotterManager.status()` |
+| GET | `/api/events` | SSE stream of status on change |
+| GET | `/api/logs` | Last 200 log lines |
+| GET | `/api/files` | `[{name, size, mtime}]` |
+| GET | `/api/files/:name` | Raw SVG text |
+| GET | `/api/files/:name/layers` | `[{label, number}]` from Inkscape `<g>` labels |
+| POST | `/api/upload` | multipart `file` |
+| DELETE | `/api/files/:name` | |
+| POST | `/api/plot` | `{file, layer?}` |
+| POST | `/api/pause` / `/api/resume` / `/api/stop` / `/api/home` | |
+| POST | `/api/pen/:dir` | `dir` = `up` or `down` |
+| POST | `/api/jog` | `{dx, dy}` in mm |
+| GET | `/api/estimate/:name` | `?layer=N` → `{time, drawDistance, travelDistance, totalDistance}` |
+| GET/POST | `/api/config` | Parsed/serialized `nextdraw.conf.py` |
 
-## Constants
+## Config keys
 
-| Constant | Value | Source |
-|---|---|---|
-| SVG px → mm | `25.4 / 96 ≈ 0.2646` | CSS spec: 1px = 1/96 inch |
-| Steps per mm | `5` | AxiDraw v3 hardware |
-| Servo range (v3) | `7500` (down) – `28000` (up) | 83ns-resolution PWM units |
-| EBB USB | VID `0x04d8`, PID `0xfd92` | SchmalzHaus |
-| Baud rate | `9600` | EBB default |
-| `LM` firmware req | `≥ 2.5.3` | |
-| `SR` firmware req | `≥ 2.6.0` | |
+Written to `db/nextdraw.conf.py` and passed to every `nextdraw` invocation via `--config`. See the [CLI reference](https://bantam.tools/nd_cli/) for full semantics.
+
+`model`, `penlift`, `pen_pos_up/down`, `pen_rate_raise/lower`, `pen_delay_up/down`, `speed_pendown/penup`, `accel`, `const_speed`, `reordering`, `random_start`, `hiding`, `auto_rotate`, `copies`, `page_delay`, `resolution`
+
+## What the earlier WebSerial version had that this doesn't
+
+- **Zero-install** — the old version ran entirely in Chrome via WebSerial. This one needs Node, Python, and `nextdraw` installed.
+- **Fit-to-page / margins** — the old version scaled any SVG to fit your chosen paper. `nextdraw` plots the SVG at its declared physical size; author your SVG at the final dimensions (or use `auto_rotate`).
+- **Per-path progress overlay** — the old canvas recolored completed paths. Progress from `nextdraw` is a single percentage, so the new preview shows a top progress bar instead.
+- **Instant pen up/down** — each manual command now forks a subprocess (~1s) rather than sending a serial byte.

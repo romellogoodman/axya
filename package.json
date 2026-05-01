@@ -1,21 +1,23 @@
 {
-  "name": "romello-goodman-prototype-boilerplate",
+  "name": "axya",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=8080 --open",
+    "dev": "concurrently -n server,vite -c blue,green \"npm:server\" \"npm:client\"",
+    "server": "node server/index.js",
+    "client": "vite --port=8080 --open",
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{js,jsx,scss,css}\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,scss,css}\"",
+    "format": "prettier --write \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.js\"",
     "preview": "vite preview",
     "clean": "rm -rf dist node_modules package-lock.json"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "flatten-svg": "^0.3.0",
-    "optimize-paths": "^1.2.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -24,6 +26,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.0.0",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
