@@ -1,251 +1,209 @@
-import { useReducer, useRef, useEffect, useCallback, useState } from "react";
+import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 import "./App.scss";
 
-import { EBB } from "./lib/ebb.js";
-import { parseSVG, scalePaths, PaperSizes, Plotters } from "./lib/svg.js";
-import { createPlan, formatDuration } from "./lib/planning.js";
+import { api, subscribeStatus } from "./lib/api.js";
+import { parseSVG, PLOTTER_MODELS, formatDuration } from "./lib/svg.js";
 import { reducer, initialState, PERSISTED_KEYS, STORAGE_KEY } from "./state.js";
+
 import { Preview } from "./Preview.jsx";
+import { FileLibrary } from "./FileLibrary.jsx";
+import { JogPad } from "./JogPad.jsx";
+import { LogPanel } from "./LogPanel.jsx";
+import { ConfigModal } from "./ConfigModal.jsx";
+
+const STATE_LABELS = {
+  idle: "Idle",
+  plotting: "Plotting",
+  paused: "Paused",
+  error: "Error",
+};
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
-  const abortControllerRef = useRef(null);
+  const prevStateRef = useRef(state.status.state);
+  const logVersionRef = useRef(-1);
 
-  // Get paper dimensions and device config
-  const paper = { width: state.paperWidth, height: state.paperHeight };
-  const plotter = Plotters[state.plotter];
-  const device = plotter?.device;
+  const { status, config } = state;
+  const model = PLOTTER_MODELS[config?.model] || PLOTTER_MODELS[8];
+  const busy = status.state === "plotting";
 
-  // Effect: Persist settings to localStorage
+  // ---- helpers ----
+  const setError = useCallback(
+    (err) => dispatch({ type: "SET_ERROR", error: err?.message || String(err) }),
+    []
+  );
+
+  const run = useCallback(
+    (fn) =>
+      Promise.resolve()
+        .then(fn)
+        .catch(setError),
+    [setError]
+  );
+
+  const refreshFiles = useCallback(
+    () => run(async () => dispatch({ type: "SET_FILES", files: await api.files() })),
+    [run]
+  );
+
+  const refreshConfig = useCallback(
+    () => run(async () => dispatch({ type: "SET_CONFIG", config: await api.config() })),
+    [run]
+  );
+
+  const refreshLogs = useCallback(
+    () => run(async () => dispatch({ type: "SET_LOGS", logs: await api.logs() })),
+    [run]
+  );
+
+  // ---- effects: persistence ----
   useEffect(
     () => {
       const toSave = {};
       for (const key of PERSISTED_KEYS) toSave[key] = state[key];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     },
-    PERSISTED_KEYS.map((k) => state[k])
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Effect: Scale paths when paper size, margin, plotter, or fit page changes
-  useEffect(() => {
-    if (!state.rawPaths || !device) return;
-
-    const scaled = scalePaths(state.rawPaths, {
-      paperWidth: paper.width,
-      paperHeight: paper.height,
-      marginMm: state.marginMm,
-      fitPage: state.fitPage,
-      svgWidth: state.svgWidth,
-      svgHeight: state.svgHeight,
-      viewBox: state.svgViewBox,
-      device,
-    });
-
-    dispatch({ type: "SET_SCALED_PATHS", paths: scaled });
-  }, [
-    state.rawPaths,
-    state.paperSize,
-    state.marginMm,
-    state.fitPage,
-    state.svgWidth,
-    state.svgHeight,
-    state.svgViewBox,
-    paper.width,
-    paper.height,
-    device,
-  ]);
-
-  // Effect: Create plan when scaled paths, pen heights, or plotter change
-  useEffect(() => {
-    if (!state.scaledPaths || state.scaledPaths.length === 0 || !device) return;
-
-    const plan = createPlan(state.scaledPaths, {
-      penUpHeight: state.penUpHeight,
-      penDownHeight: state.penDownHeight,
-      device,
-    });
-
-    dispatch({
-      type: "SET_PLAN",
-      plan,
-      duration: plan.duration(),
-    });
-  }, [state.scaledPaths, state.penUpHeight, state.penDownHeight, device]);
-
-  // Complete the connection handshake after obtaining an EBB instance
-  const finishConnect = useCallback(async (ebb) => {
-    const firmwareVersion = await ebb.firmwareVersion();
-    const steppersPowered = await ebb.areSteppersPowered();
-    dispatch({ type: "CONNECTED", ebb, firmwareVersion, steppersPowered });
-  }, []);
-
-  // Handler: Connect to plotter (user-initiated, shows port picker)
-  const handleConnect = useCallback(async () => {
-    try {
-      const ebb = await EBB.connect();
-      await finishConnect(ebb);
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: err.message });
-    }
-  }, [finishConnect]);
-
-  // Effect: Auto-reconnect to previously-paired device on mount
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const ebb = await EBB.tryAutoConnect();
-        if (ebb && !cancelled) await finishConnect(ebb);
-      } catch {
-        // Silent — user can connect manually
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [finishConnect]);
-
-  // Handler: Disconnect from plotter
-  const handleDisconnect = useCallback(async () => {
-    if (state.ebb) {
-      try {
-        await state.ebb.close();
-      } catch (err) {
-        console.error("Error closing connection:", err);
-      }
-    }
-    dispatch({ type: "DISCONNECTED" });
-  }, [state.ebb]);
-
-  // Handler: Process SVG file
-  const processFile = useCallback((file) => {
-    if (!file || !file.name.toLowerCase().endsWith(".svg")) {
-      dispatch({ type: "SET_ERROR", error: "Please upload an SVG file" });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const svgString = e.target.result;
-        const { paths, width, height, viewBox } = parseSVG(svgString);
-
-        dispatch({
-          type: "SET_SVG",
-          svgString,
-          fileName: file.name,
-          paths,
-          width,
-          height,
-          viewBox,
-        });
-      } catch (err) {
-        dispatch({ type: "SET_ERROR", error: err.message });
-      }
-    };
-    reader.readAsText(file);
-  }, []);
-
-  // Handler: File upload
-  const handleFileUpload = useCallback(
-    (event) => {
-      const file = event.target.files?.[0];
-      if (file) processFile(file);
-    },
-    [processFile]
+    PERSISTED_KEYS.map((k) => state[k]) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Handler: Drag and drop
-  const handleDragOver = useCallback((e) => {
+  // ---- effects: SSE subscription + initial load ----
+  useEffect(() => {
+    refreshFiles();
+    refreshConfig();
+    refreshLogs();
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    return subscribeStatus(
+      (s) => dispatch({ type: "STATUS", status: s }),
+      (connected) => dispatch({ type: "SERVER_CONNECTED", connected })
+    );
+  }, [refreshFiles, refreshConfig, refreshLogs]);
+
+  // ---- effects: fetch selected file's SVG + layers ----
+  useEffect(() => {
+    if (!state.selectedFile) return;
+    run(async () => {
+      const [svgString, layers] = await Promise.all([
+        api.file(state.selectedFile),
+        api.layers(state.selectedFile),
+      ]);
+      const { paths, widthMm, heightMm } = parseSVG(svgString);
+      dispatch({ type: "SET_SVG", svgString, paths, widthMm, heightMm });
+      dispatch({ type: "SET_LAYERS", layers });
+    });
+  }, [state.selectedFile, run]);
+
+  // ---- effects: refetch logs when logVersion changes ----
+  useEffect(() => {
+    if (status.logVersion !== logVersionRef.current) {
+      logVersionRef.current = status.logVersion;
+      if (state.showLog) refreshLogs();
+    }
+  }, [status.logVersion, state.showLog, refreshLogs]);
+
+  // ---- effects: state-transition notifications ----
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    const cur = status.state;
+    if (prev === cur) return;
+    prevStateRef.current = cur;
+
+    if (!("Notification" in window) || Notification.permission !== "granted")
+      return;
+
+    if (prev === "plotting" && cur === "idle") {
+      new Notification("Plot complete", { body: status.currentFile || "" });
+    } else if (cur === "paused") {
+      new Notification("Plot paused", { body: status.currentFile || "" });
+    } else if (cur === "error") {
+      new Notification("Plot error", { body: status.error || "" });
+    }
+  }, [status.state, status.currentFile, status.error]);
+
+  // ---- handlers ----
+  const handleUpload = useCallback(
+    (file) =>
+      run(async () => {
+        const { name } = await api.upload(file);
+        await refreshFiles();
+        dispatch({ type: "SELECT_FILE", file: name });
+        dispatch({ type: "TOGGLE_FILE_LIBRARY", show: false });
+      }),
+    [run, refreshFiles]
+  );
+
+  const handleDeleteFile = useCallback(
+    (name) =>
+      run(async () => {
+        await api.deleteFile(name);
+        if (name === state.selectedFile) dispatch({ type: "SELECT_FILE", file: null });
+        await refreshFiles();
+      }),
+    [run, refreshFiles, state.selectedFile]
+  );
+
+  const handleSelectFile = useCallback((name) => {
+    dispatch({ type: "SELECT_FILE", file: name });
+    dispatch({ type: "TOGGLE_FILE_LIBRARY", show: false });
+  }, []);
+
+  const handlePlot = useCallback(
+    () => run(() => api.plot(state.selectedFile, state.selectedLayer)),
+    [run, state.selectedFile, state.selectedLayer]
+  );
+
+  const handleEstimate = useCallback(
+    () =>
+      run(async () => {
+        const est = await api.estimate(state.selectedFile, state.selectedLayer);
+        dispatch({ type: "SET_ESTIMATE", estimate: est });
+      }),
+    [run, state.selectedFile, state.selectedLayer]
+  );
+
+  const handleSaveConfig = useCallback(
+    (draft) =>
+      run(async () => {
+        await api.saveConfig(draft);
+        await refreshConfig();
+        dispatch({ type: "TOGGLE_CONFIG", show: false });
+      }),
+    [run, refreshConfig]
+  );
+
+  // ---- drag & drop ----
+  const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e) => {
+  };
+  const handleDragLeave = (e) => {
     e.preventDefault();
     setIsDragging(false);
-  }, []);
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.name.toLowerCase().endsWith(".svg")) handleUpload(file);
+  };
 
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) processFile(file);
-    },
-    [processFile]
-  );
+  // ---- derived ----
+  const eta =
+    status.progress > 0 && status.progress < 100
+      ? (status.elapsed * (100 - status.progress)) / status.progress
+      : null;
 
-  // Handler: Start plotting
-  const handlePlot = useCallback(async () => {
-    if (!state.ebb || !state.plan) return;
+  const summaryPill = config
+    ? `${model.name.split(" ").slice(-1)[0]} · ↑${config.pen_pos_up} ↓${config.pen_pos_down} · ⚡${config.speed_pendown}`
+    : "";
 
-    abortControllerRef.current = new AbortController();
-
-    dispatch({
-      type: "PLOTTING_START",
-      totalMotions: state.plan.motions.length,
-    });
-
-    try {
-      await state.ebb.executePlan(state.plan, {
-        onProgress: (current) => {
-          dispatch({ type: "PLOTTING_PROGRESS", current });
-        },
-        signal: abortControllerRef.current.signal,
-      });
-
-      dispatch({ type: "PLOTTING_COMPLETE" });
-    } catch (err) {
-      if (err.message !== "Plot aborted") {
-        dispatch({ type: "PLOTTING_ERROR", error: err.message });
-      } else {
-        dispatch({ type: "PLOTTING_COMPLETE" });
-      }
-    }
-  }, [state.ebb, state.plan]);
-
-  // Handler: Stop plotting
-  // EBB.executePlan handles pen lift + HM home + motor disable on abort.
-  const handleStop = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
-
-  // Handler: Pen up
-  const handlePenUp = useCallback(async () => {
-    if (!state.ebb || !device) return;
-    try {
-      await state.ebb.penUp(state.penUpHeight, device);
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: err.message });
-    }
-  }, [state.ebb, state.penUpHeight, device]);
-
-  // Handler: Pen down
-  const handlePenDown = useCallback(async () => {
-    if (!state.ebb || !device) return;
-    try {
-      await state.ebb.penDown(state.penDownHeight, device);
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: err.message });
-    }
-  }, [state.ebb, state.penDownHeight, device]);
-
-  // Handler: Disable motors
-  const handleDisableMotors = useCallback(async () => {
-    if (!state.ebb) return;
-    try {
-      await state.ebb.disableMotors();
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: err.message });
-    }
-  }, [state.ebb]);
+  const oversize =
+    state.svgWidthMm > model.width + 0.5 || state.svgHeightMm > model.height + 0.5;
 
   return (
     <main className="app">
-      {/* Error Banner */}
       {state.error && (
         <div className="app__error">
           <span>{state.error}</span>
@@ -261,249 +219,220 @@ function App() {
       <div className="app__content">
         {/* Sidebar */}
         <aside className="app__sidebar">
-          {/* Plotter Selection */}
+          {/* Status */}
           <section className="panel">
             <h2 className="panel__title">Plotter</h2>
-            <div className="panel__content">
-              <div className="form-group">
-                {/* <label htmlFor="plotter">Model</label> */}
-                <select
-                  id="plotter"
-                  value={state.plotter}
-                  onChange={(e) => {
-                    dispatch({
-                      type: "SET_PLOTTER",
-                      plotter: e.target.value,
-                    });
-                  }}
-                  className="select"
-                >
-                  {Object.keys(Plotters).map((plotter) => (
-                    <option key={plotter} value={plotter}>
-                      {plotter}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="connection-group">
-              <button
-                onClick={state.connected ? handleDisconnect : handleConnect}
-                className={`connection-btn ${state.connected ? "connection-btn--connected" : ""}`}
-              >
-                <span className="connection-btn__dot"></span>
-                <span>{state.connected ? "Connected" : "Connect"}</span>
-              </button>
-            </div>
-            <button
-              onClick={handleDisableMotors}
-              disabled={!state.connected}
-              className="button button--secondary"
-              title="Disable stepper motors for manual positioning"
+            <div
+              className={`status-badge status-badge--${state.serverConnected ? status.state : "offline"}`}
             >
-              Motors Off
+              <span className="status-badge__dot" />
+              <span className="status-badge__label">
+                {state.serverConnected
+                  ? STATE_LABELS[status.state]
+                  : "Server offline"}
+              </span>
+              {busy && (
+                <span className="status-badge__progress">{status.progress}%</span>
+              )}
+            </div>
+            {config && <div className="summary-pill">{summaryPill}</div>}
+            <button
+              className="button button--secondary"
+              onClick={() => dispatch({ type: "TOGGLE_CONFIG", show: true })}
+            >
+              Configure
             </button>
           </section>
 
-          {/* Paper Configuration */}
+          {/* File */}
           <section className="panel">
-            <h2 className="panel__title">Paper</h2>
-            <div className="panel__content">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="paper-width">Width (in)</label>
-                  <input
-                    type="number"
-                    id="paper-width"
-                    value={Math.round((state.paperWidth / 25.4) * 100) / 100}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_PAPER_WIDTH",
-                        width: Number(e.target.value) * 25.4,
-                      })
-                    }
-                    min={0.1}
-                    max={Math.round((plotter?.maxWidth / 25.4) * 100) / 100}
-                    step={0.1}
-                    className="input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="paper-height">Height (in)</label>
-                  <input
-                    type="number"
-                    id="paper-height"
-                    value={Math.round((state.paperHeight / 25.4) * 100) / 100}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_PAPER_HEIGHT",
-                        height: Number(e.target.value) * 25.4,
-                      })
-                    }
-                    min={0.1}
-                    max={Math.round((plotter?.maxHeight / 25.4) * 100) / 100}
-                    step={0.1}
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="paper-size">Size</label>
-                  <select
-                    id="paper-size"
-                    value={state.paperSize}
-                    onChange={(e) => {
-                      const size = PaperSizes[e.target.value];
-                      if (size) {
-                        dispatch({
-                          type: "SET_PAPER_SIZE",
-                          paperSize: e.target.value,
-                          width: size.width,
-                          height: size.height,
-                        });
-                      }
-                    }}
-                    className="select"
-                  >
-                    <option value="">Custom</option>
-                    {Object.keys(PaperSizes).map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="margin">Margin (in)</label>
-                  <input
-                    type="number"
-                    id="margin"
-                    value={Math.round((state.marginMm / 25.4) * 100) / 100}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_MARGIN",
-                        margin: Number(e.target.value) * 25.4,
-                      })
-                    }
-                    min={0}
-                    max={2}
-                    step={0.1}
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              {/* <div className="form-group form-group--checkbox">
-                <input
-                  type="checkbox"
-                  id="fit-page"
-                  checked={state.fitPage}
-                  onChange={(e) =>
-                    dispatch({ type: "SET_FIT_PAGE", fitPage: e.target.checked })
-                  }
-                />
-                <label htmlFor="fit-page">Fit to page</label>
-              </div> */}
-            </div>
+            <h2 className="panel__title">File</h2>
+            <button
+              className="file-select"
+              onClick={() => dispatch({ type: "TOGGLE_FILE_LIBRARY", show: true })}
+            >
+              <span className="file-select__name">
+                {state.selectedFile || "Choose a file…"}
+              </span>
+              <span className="file-select__arrow">›</span>
+            </button>
+            {state.selectedFile && (
+              <p className="panel__info">
+                {state.svgWidthMm.toFixed(0)} × {state.svgHeightMm.toFixed(0)} mm
+                {oversize && (
+                  <span className="panel__warn"> — exceeds travel area</span>
+                )}
+              </p>
+            )}
           </section>
 
-          {/* Pen Configuration */}
-          <section className="panel">
-            <h2 className="panel__title">Pen Height</h2>
-            <div className="panel__content">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="pen-up">Up (%)</label>
-                  <input
-                    type="number"
-                    id="pen-up"
-                    value={state.penUpHeight}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_PEN_UP_HEIGHT",
-                        height: Number(e.target.value),
-                      })
-                    }
-                    min={0}
-                    max={100}
-                    className="input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="pen-down">Down (%)</label>
-                  <input
-                    type="number"
-                    id="pen-down"
-                    value={state.penDownHeight}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_PEN_DOWN_HEIGHT",
-                        height: Number(e.target.value),
-                      })
-                    }
-                    min={0}
-                    max={100}
-                    className="input"
-                  />
-                </div>
+          {/* Layers */}
+          {state.layers.length > 0 && (
+            <section className="panel">
+              <h2 className="panel__title">Layers</h2>
+              <div className="layer-chips">
+                <button
+                  className={`layer-chips__chip ${state.selectedLayer == null ? "layer-chips__chip--active" : ""}`}
+                  onClick={() => dispatch({ type: "SELECT_LAYER", layer: null })}
+                >
+                  All
+                </button>
+                {state.layers
+                  .filter((l) => l.number != null)
+                  .map((l) => (
+                    <button
+                      key={l.label}
+                      className={`layer-chips__chip ${state.selectedLayer === l.number ? "layer-chips__chip--active" : ""}`}
+                      onClick={() =>
+                        dispatch({ type: "SELECT_LAYER", layer: l.number })
+                      }
+                      title={l.label}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
               </div>
+            </section>
+          )}
 
-              <div className="button-group">
-                <button
-                  onClick={handlePenUp}
-                  disabled={!state.connected}
-                  className="button button--secondary"
-                >
-                  Pen Up
-                </button>
-                <button
-                  onClick={handlePenDown}
-                  disabled={!state.connected}
-                  className="button button--secondary"
-                >
-                  Pen Down
-                </button>
+          {/* Estimate */}
+          <section className="panel">
+            <h2 className="panel__title">Estimate</h2>
+            <button
+              className="button button--secondary"
+              onClick={handleEstimate}
+              disabled={!state.selectedFile || busy}
+            >
+              Calculate
+            </button>
+            {state.estimate && (
+              <div className="estimate">
+                {state.estimate.time && (
+                  <div className="estimate__row">
+                    <span>Time</span>
+                    <strong>{state.estimate.time}</strong>
+                  </div>
+                )}
+                {state.estimate.drawDistance && (
+                  <div className="estimate__row">
+                    <span>Draw</span>
+                    <strong>{state.estimate.drawDistance}</strong>
+                  </div>
+                )}
+                {state.estimate.travelDistance && (
+                  <div className="estimate__row">
+                    <span>Travel</span>
+                    <strong>{state.estimate.travelDistance}</strong>
+                  </div>
+                )}
               </div>
+            )}
+          </section>
+
+          {/* Manual */}
+          <section className="panel">
+            <h2 className="panel__title">Manual</h2>
+            <div className="button-group">
+              <button
+                className="button button--secondary"
+                onClick={() => run(() => api.pen("up"))}
+                disabled={busy}
+              >
+                Pen Up
+              </button>
+              <button
+                className="button button--secondary"
+                onClick={() => run(() => api.pen("down"))}
+                disabled={busy}
+              >
+                Pen Down
+              </button>
             </div>
+            <button
+              className="button button--secondary"
+              onClick={() => dispatch({ type: "TOGGLE_JOG", show: true })}
+              disabled={busy}
+            >
+              Jog / Home
+            </button>
+            <button
+              className="button button--secondary"
+              onClick={() => {
+                dispatch({ type: "TOGGLE_LOG", show: !state.showLog });
+                if (!state.showLog) refreshLogs();
+              }}
+            >
+              {state.showLog ? "Hide Log" : "Show Log"}
+            </button>
           </section>
 
           {/* Plot Controls */}
           <div className="plot-controls">
-            {state.estimatedDuration != null && (
+            {busy && (
               <div className="stats-bar">
                 <span className="stats-bar__item">
-                  {formatDuration(state.estimatedDuration)} minutes
+                  {formatDuration(status.elapsed)} elapsed
                 </span>
-                {state.plotting && (
+                {eta != null && (
                   <span className="stats-bar__item">
-                    {Math.round(state.progress * 100)}%
+                    {formatDuration(eta)} left
                   </span>
                 )}
               </div>
             )}
-            {state.plotting ? (
-              <button onClick={handleStop} className="button button--danger">
-                Stop
-              </button>
-            ) : (
+
+            {status.state === "plotting" && (
+              <div className="button-group">
+                <button
+                  className="button button--secondary"
+                  onClick={() => run(api.pause)}
+                >
+                  Pause
+                </button>
+                <button
+                  className="button button--danger"
+                  onClick={() => run(api.stop)}
+                >
+                  Stop
+                </button>
+              </div>
+            )}
+
+            {status.state === "paused" && (
+              <>
+                <button
+                  className="button button--primary"
+                  onClick={() => run(api.resume)}
+                >
+                  Resume
+                </button>
+                <div className="button-group">
+                  <button
+                    className="button button--secondary"
+                    onClick={() => run(api.home)}
+                  >
+                    Home
+                  </button>
+                  <button
+                    className="button button--danger"
+                    onClick={() => run(api.stop)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {(status.state === "idle" || status.state === "error") && (
               <button
-                onClick={handlePlot}
-                disabled={!state.plan || !state.connected}
                 className="button button--primary"
-                title={
-                  !state.plan
-                    ? "Load an SVG file first"
-                    : !state.connected
-                      ? "Connect your plotter first"
-                      : "Start plotting"
-                }
+                onClick={handlePlot}
+                disabled={!state.selectedFile || !state.serverConnected}
               >
-                {!state.plan
-                  ? "Load SVG to Plot"
-                  : !state.connected
-                    ? "Connect to Plot"
+                {!state.selectedFile
+                  ? "Select a file to plot"
+                  : state.selectedLayer != null
+                    ? `Plot layer ${state.selectedLayer}`
                     : "Plot"}
               </button>
             )}
@@ -518,24 +447,54 @@ function App() {
           onDrop={handleDrop}
         >
           <Preview
-            paths={state.scaledPaths}
-            paperWidth={paper.width}
-            paperHeight={paper.height}
-            marginMm={state.marginMm}
-            plotting={state.plotting}
-            progress={state.progress}
+            paths={state.paths}
+            svgWidthMm={state.svgWidthMm}
+            svgHeightMm={state.svgHeightMm}
+            travelWidthMm={model.width}
+            travelHeightMm={model.height}
+            progress={status.progress}
             isDragging={isDragging}
-            onUploadClick={() => fileInputRef.current?.click()}
+            onUploadClick={() =>
+              dispatch({ type: "TOGGLE_FILE_LIBRARY", show: true })
+            }
           />
-          <input
-            type="file"
-            accept=".svg"
-            onChange={handleFileUpload}
-            ref={fileInputRef}
-            className="file-input"
-          />
+          {state.showLog && (
+            <LogPanel
+              logs={state.logs}
+              onClose={() => dispatch({ type: "TOGGLE_LOG", show: false })}
+            />
+          )}
         </div>
       </div>
+
+      {/* Modals */}
+      {state.showFileLibrary && (
+        <FileLibrary
+          files={state.files}
+          selectedFile={state.selectedFile}
+          onSelect={handleSelectFile}
+          onUpload={handleUpload}
+          onDelete={handleDeleteFile}
+          onClose={() => dispatch({ type: "TOGGLE_FILE_LIBRARY", show: false })}
+        />
+      )}
+      {state.showConfig && config && (
+        <ConfigModal
+          config={config}
+          onSave={handleSaveConfig}
+          onClose={() => dispatch({ type: "TOGGLE_CONFIG", show: false })}
+        />
+      )}
+      {state.showJog && (
+        <JogPad
+          busy={busy}
+          canHome={status.canHome}
+          onJog={(dx, dy) => run(() => api.jog(dx, dy))}
+          onPen={(dir) => run(() => api.pen(dir))}
+          onHome={() => run(api.home)}
+          onClose={() => dispatch({ type: "TOGGLE_JOG", show: false })}
+        />
+      )}
     </main>
   );
 }

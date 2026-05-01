@@ -1,26 +1,25 @@
 /**
- * Canvas preview: paper outline, margin guide, paths, live progress overlay.
- * Owns its own resize observer and DPR-aware canvas sizing.
+ * Canvas preview: plotter travel area, SVG document outline, paths.
+ * All coordinates in mm. Owns its own resize observer and DPR scaling.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Device } from "./lib/planning.js";
 
-function strokePath(ctx, path, offsetX, offsetY, scale) {
+function strokePath(ctx, path, ox, oy, s) {
   ctx.beginPath();
-  ctx.moveTo(offsetX + path[0].x * scale, offsetY + path[0].y * scale);
+  ctx.moveTo(ox + path[0].x * s, oy + path[0].y * s);
   for (let i = 1; i < path.length; i++) {
-    ctx.lineTo(offsetX + path[i].x * scale, offsetY + path[i].y * scale);
+    ctx.lineTo(ox + path[i].x * s, oy + path[i].y * s);
   }
   ctx.stroke();
 }
 
 export function Preview({
   paths,
-  paperWidth,
-  paperHeight,
-  marginMm,
-  plotting,
+  svgWidthMm,
+  svgHeightMm,
+  travelWidthMm,
+  travelHeightMm,
   progress,
   isDragging,
   onUploadClick,
@@ -30,11 +29,9 @@ export function Preview({
   const canvasRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
-  // Resize observer
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -45,7 +42,6 @@ export function Preview({
     return () => observer.disconnect();
   }, []);
 
-  // Draw
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || size.width === 0 || size.height === 0) return;
@@ -60,61 +56,46 @@ export function Preview({
     canvas.style.height = `${ch}px`;
     ctx.scale(dpr, dpr);
 
-    // Background
     ctx.fillStyle = "#f8f8f7";
     ctx.fillRect(0, 0, cw, ch);
 
-    // Fit paper in canvas
-    const paperW = paperWidth * Device.stepsPerMm;
-    const paperH = paperHeight * Device.stepsPerMm;
-    const padding = 24;
-    const availW = cw - padding * 2;
-    const availH = ch - padding * 2;
-    const scale = Math.min(availW / paperW, availH / paperH);
-    const offsetX = padding + (availW - paperW * scale) / 2;
-    const offsetY = padding + (availH - paperH * scale) / 2;
+    // Bounding area is the larger of travel area and SVG (so oversize SVGs are visible)
+    const areaW = Math.max(travelWidthMm, svgWidthMm || 0, 1);
+    const areaH = Math.max(travelHeightMm, svgHeightMm || 0, 1);
 
-    // Paper
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "#e8e8e6";
+    const pad = 24;
+    const availW = cw - pad * 2;
+    const availH = ch - pad * 2;
+    const scale = Math.min(availW / areaW, availH / areaH);
+    const ox = pad + (availW - areaW * scale) / 2;
+    const oy = pad + (availH - areaH * scale) / 2;
+
+    // Travel area outline
+    ctx.strokeStyle = "#d8d8d6";
     ctx.lineWidth = 1;
-    ctx.fillRect(offsetX, offsetY, paperW * scale, paperH * scale);
-    ctx.strokeRect(offsetX, offsetY, paperW * scale, paperH * scale);
-
-    // Margin guide
-    const marginSteps = marginMm * Device.stepsPerMm;
-    ctx.strokeStyle = "#e0e0e0";
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(
-      offsetX + marginSteps * scale,
-      offsetY + marginSteps * scale,
-      (paperW - marginSteps * 2) * scale,
-      (paperH - marginSteps * 2) * scale
-    );
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(ox, oy, travelWidthMm * scale, travelHeightMm * scale);
     ctx.setLineDash([]);
+
+    // SVG document rectangle
+    if (svgWidthMm > 0 && svgHeightMm > 0) {
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#e8e8e6";
+      ctx.fillRect(ox, oy, svgWidthMm * scale, svgHeightMm * scale);
+      ctx.strokeRect(ox, oy, svgWidthMm * scale, svgHeightMm * scale);
+    }
 
     // Paths
     if (paths && paths.length > 0) {
       ctx.strokeStyle = "#2d2d2d";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.25;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       for (const path of paths) {
-        if (path.length >= 2) strokePath(ctx, path, offsetX, offsetY, scale);
-      }
-
-      // Progress overlay: re-stroke completed paths in teal
-      if (plotting) {
-        ctx.strokeStyle = "#00d1b2";
-        ctx.lineWidth = 2;
-        const completed = Math.floor(progress * paths.length);
-        for (let p = 0; p < completed && p < paths.length; p++) {
-          const path = paths[p];
-          if (path.length >= 2) strokePath(ctx, path, offsetX, offsetY, scale);
-        }
+        if (path.length >= 2) strokePath(ctx, path, ox, oy, scale);
       }
     }
-  }, [paths, paperWidth, paperHeight, marginMm, plotting, progress, size]);
+  }, [paths, svgWidthMm, svgHeightMm, travelWidthMm, travelHeightMm, size]);
 
   return (
     <div
@@ -122,10 +103,27 @@ export function Preview({
       ref={containerRef}
     >
       <canvas ref={canvasRef} className="preview__canvas" />
+      {progress > 0 && progress < 100 && (
+        <div className="preview__progress">
+          <div
+            className="preview__progress-bar"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
       {isEmpty && !isDragging && (
         <div className="preview__empty">
           <div className="preview__empty-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="12" y1="12" x2="12" y2="18" />
@@ -134,13 +132,11 @@ export function Preview({
           </div>
           <p className="preview__empty-text">Drag & drop an SVG file here</p>
           <button className="button button--secondary" onClick={onUploadClick}>
-            or choose file
+            or choose from library
           </button>
         </div>
       )}
-      {isDragging && (
-        <div className="preview__drop-overlay">Drop SVG here</div>
-      )}
+      {isDragging && <div className="preview__drop-overlay">Drop SVG here</div>}
     </div>
   );
 }

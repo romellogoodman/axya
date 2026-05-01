@@ -1,30 +1,40 @@
 # Project Guidelines
 
-Browser-based AxiDraw pen plotter controller. React + Vite + SCSS. WebSerial only — no server.
+Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, Express backend, drives the plotter via the `nextdraw` CLI subprocess.
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full data flow, EBB protocol notes, and comparison with the vendored saxi reference implementations.
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, the REST API surface, and the pause/resume mechanism.
 
 ## File Structure
 
 ```
+server/
+  index.js         # Express app: routes, SSE, upload, config, layer extraction
+  plotter.js       # PlotterManager: state machine + nextdraw subprocess wrangling
+db/
+  nextdraw.conf.py # nextdraw-native config (edited via the Configure modal)
+  uploads/         # Persisted SVGs (git-ignored)
 src/
-  App.jsx          # Root: reducer wiring, pipeline effects, handlers, sidebar JSX
-  Preview.jsx      # Canvas preview (paper + paths + progress overlay)
+  App.jsx          # Root: reducer wiring, SSE subscription, handlers, sidebar JSX
+  Preview.jsx      # Canvas preview (travel area + SVG outline + paths, mm coords)
+  FileLibrary.jsx  # File picker modal
+  ConfigModal.jsx  # Schema-driven nextdraw config form
+  JogPad.jsx       # XY jog arrow pad + home + pen up/down
+  LogPanel.jsx     # Scrolling command log
+  Modal.jsx        # Shared modal shell
   state.js         # initialState, reducer, localStorage persistence
   App.scss         # All styles
   lib/
-    ebb.js         # EiBotBoard WebSerial driver
-    planning.js    # Constant-acceleration motion planner
-    svg.js         # SVG parse + scale + sort
-    vec.js         # 2D vector math
+    api.js         # fetch wrappers + SSE subscribeStatus
+    svg.js         # parseSVG (flatten-svg → mm polylines), PLOTTER_MODELS
 docs/
-  ARCHITECTURE.md  # Data flow, EBB protocol notes, saxi comparison
-  reference-apps/  # Vendored saxi (nornagon + alexrudd2 forks) for comparison
+  ARCHITECTURE.md
+  reference-apps/  # Vendored saxi sources for reference
 ```
 
 - Pure/library code lives in `src/lib/`, React components at `src/` root.
 - New React components go in their own file at `src/` — keep App.jsx for orchestration.
-- All styles still go in `src/App.scss`.
+- All styles go in `src/App.scss`.
+- Backend code stays under `server/`. It must not import from `src/`.
 
 ## CSS/SCSS Conventions
 
@@ -61,4 +71,3 @@ docs/
   </div>
 </div>
 ```
-
