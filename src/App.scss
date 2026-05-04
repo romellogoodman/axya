@@ -39,11 +39,18 @@
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
 * {
   box-sizing: border-box;
 }
 
 #root {
+  height: 100%;
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
@@ -55,7 +62,7 @@
 
 .app {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
   background: var(--color-bg);
 
   &__error {

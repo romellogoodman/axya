@@ -81,6 +81,17 @@ export const PLOTTER_MODELS = {
   10: { name: "NextDraw 2234", width: 863.6, height: 558.8 },
 };
 
+/** Common paper sizes in mm (landscape: width > height) */
+export const PaperSizes = {
+  Letter:   { width: 279.4, height: 215.9 },
+  Legal:    { width: 355.6, height: 215.9 },
+  Tabloid:  { width: 431.8, height: 279.4 },
+  A4:       { width: 297,   height: 210   },
+  A3:       { width: 420,   height: 297   },
+  "Arch A": { width: 304.8, height: 228.6 },
+  "Arch B": { width: 457.2, height: 304.8 },
+};
+
 export function formatDuration(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
