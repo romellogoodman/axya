@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 import "./App.scss";
 
 import { api, subscribeStatus } from "./lib/api.js";
-import { parseSVG, PLOTTER_MODELS, formatDuration } from "./lib/svg.js";
+import { parseSVG, PLOTTER_MODELS, PaperSizes, formatDuration } from "./lib/svg.js";
 import { reducer, initialState, PERSISTED_KEYS, STORAGE_KEY } from "./state.js";
 
 import { Preview } from "./Preview.jsx";
@@ -21,6 +21,8 @@ const STATE_LABELS = {
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isDragging, setIsDragging] = useState(false);
+  const [penUp, setPenUp] = useState(80);
+  const [penDown, setPenDown] = useState(30);
   const prevStateRef = useRef(state.status.state);
   const logVersionRef = useRef(-1);
 
@@ -55,6 +57,22 @@ function App() {
   const refreshLogs = useCallback(
     () => run(async () => dispatch({ type: "SET_LOGS", logs: await api.logs() })),
     [run]
+  );
+
+  useEffect(() => {
+    if (state.config) {
+      setPenUp(state.config.pen_pos_up);
+      setPenDown(state.config.pen_pos_down);
+    }
+  }, [state.config]);
+
+  const handlePenPosSave = useCallback(
+    (key, value) =>
+      run(async () => {
+        await api.saveConfig({ ...state.config, [key]: value });
+        await refreshConfig();
+      }),
+    [run, state.config, refreshConfig]
   );
 
   // ---- effects: persistence ----
@@ -199,9 +217,6 @@ function App() {
     ? `${model.name.split(" ").slice(-1)[0]} · ↑${config.pen_pos_up} ↓${config.pen_pos_down} · ⚡${config.speed_pendown}`
     : "";
 
-  const oversize =
-    state.svgWidthMm > model.width + 0.5 || state.svgHeightMm > model.height + 0.5;
-
   return (
     <main className="app">
       {state.error && (
@@ -256,14 +271,67 @@ function App() {
               </span>
               <span className="file-select__arrow">›</span>
             </button>
-            {state.selectedFile && (
-              <p className="panel__info">
-                {state.svgWidthMm.toFixed(0)} × {state.svgHeightMm.toFixed(0)} mm
-                {oversize && (
-                  <span className="panel__warn"> — exceeds travel area</span>
-                )}
-              </p>
-            )}
+          </section>
+
+          {/* Paper */}
+          <section className="panel">
+            <h2 className="panel__title">Paper</h2>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Size</label>
+                <select
+                  className="select"
+                  value={state.paperSize}
+                  onChange={(e) => dispatch({ type: "SET_PAPER_SIZE", size: e.target.value })}
+                >
+                  {Object.keys(PaperSizes).map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  <option value="Custom">Custom</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Margin (in)</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={parseFloat((state.marginMm / 25.4).toFixed(3))}
+                  min={0}
+                  step={0.25}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_MARGIN", value: Number(e.target.value) * 25.4 })
+                  }
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>W (in)</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={parseFloat((state.paperWidthMm / 25.4).toFixed(3))}
+                  min={0.1}
+                  step={0.5}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_PAPER_WIDTH", value: Number(e.target.value) * 25.4 })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>H (in)</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={parseFloat((state.paperHeightMm / 25.4).toFixed(3))}
+                  min={0.1}
+                  step={0.5}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_PAPER_HEIGHT", value: Number(e.target.value) * 25.4 })
+                  }
+                />
+              </div>
+            </div>
           </section>
 
           {/* Layers */}
@@ -332,6 +400,34 @@ function App() {
           {/* Manual */}
           <section className="panel">
             <h2 className="panel__title">Manual</h2>
+            {state.config && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Up %</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={penUp}
+                    min={0}
+                    max={100}
+                    onChange={(e) => setPenUp(Number(e.target.value))}
+                    onBlur={(e) => handlePenPosSave("pen_pos_up", Number(e.target.value))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Down %</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={penDown}
+                    min={0}
+                    max={100}
+                    onChange={(e) => setPenDown(Number(e.target.value))}
+                    onBlur={(e) => handlePenPosSave("pen_pos_down", Number(e.target.value))}
+                  />
+                </div>
+              </div>
+            )}
             <div className="button-group">
               <button
                 className="button button--secondary"
@@ -452,6 +548,9 @@ function App() {
             svgHeightMm={state.svgHeightMm}
             travelWidthMm={model.width}
             travelHeightMm={model.height}
+            paperWidthMm={state.paperWidthMm}
+            paperHeightMm={state.paperHeightMm}
+            marginMm={state.marginMm}
             progress={status.progress}
             isDragging={isDragging}
             onUploadClick={() =>

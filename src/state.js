@@ -2,7 +2,9 @@
  * App state: initial shape, reducer, localStorage persistence.
  */
 
-export const PERSISTED_KEYS = ["selectedFile", "selectedLayer"];
+import { PaperSizes } from "./lib/svg.js";
+
+export const PERSISTED_KEYS = ["selectedFile", "selectedLayer", "paperSize", "paperWidthMm", "paperHeightMm", "marginMm"];
 export const STORAGE_KEY = "axya:settings";
 
 function loadPersisted() {
@@ -49,6 +51,12 @@ export const initialState = {
 
   // Log buffer (from /api/logs)
   logs: [],
+
+  // Paper size
+  paperSize: "Letter",
+  paperWidthMm: PaperSizes.Letter.width,
+  paperHeightMm: PaperSizes.Letter.height,
+  marginMm: 12.7, // 0.5 in
 
   // UI
   error: null,
@@ -110,6 +118,21 @@ export function reducer(state, action) {
       return { ...state, error: action.error };
     case "CLEAR_ERROR":
       return { ...state, error: null };
+
+    case "SET_PAPER_SIZE": {
+      const size = PaperSizes[action.size];
+      return {
+        ...state,
+        paperSize: action.size,
+        ...(size ? { paperWidthMm: size.width, paperHeightMm: size.height } : {}),
+      };
+    }
+    case "SET_PAPER_WIDTH":
+      return { ...state, paperWidthMm: action.value, paperSize: "Custom" };
+    case "SET_PAPER_HEIGHT":
+      return { ...state, paperHeightMm: action.value, paperSize: "Custom" };
+    case "SET_MARGIN":
+      return { ...state, marginMm: action.value };
 
     case "TOGGLE_FILE_LIBRARY":
       return { ...state, showFileLibrary: action.show ?? !state.showFileLibrary };

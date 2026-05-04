@@ -20,6 +20,9 @@ export function Preview({
   svgHeightMm,
   travelWidthMm,
   travelHeightMm,
+  paperWidthMm,
+  paperHeightMm,
+  marginMm = 0,
   progress,
   isDragging,
   onUploadClick,
@@ -59,9 +62,8 @@ export function Preview({
     ctx.fillStyle = "#f8f8f7";
     ctx.fillRect(0, 0, cw, ch);
 
-    // Bounding area is the larger of travel area and SVG (so oversize SVGs are visible)
-    const areaW = Math.max(travelWidthMm, svgWidthMm || 0, 1);
-    const areaH = Math.max(travelHeightMm, svgHeightMm || 0, 1);
+    const areaW = Math.max(travelWidthMm, svgWidthMm || 0, paperWidthMm || 0, 1);
+    const areaH = Math.max(travelHeightMm, svgHeightMm || 0, paperHeightMm || 0, 1);
 
     const pad = 24;
     const availW = cw - pad * 2;
@@ -77,25 +79,58 @@ export function Preview({
     ctx.strokeRect(ox, oy, travelWidthMm * scale, travelHeightMm * scale);
     ctx.setLineDash([]);
 
-    // SVG document rectangle
-    if (svgWidthMm > 0 && svgHeightMm > 0) {
+    // Paper rectangle (if set)
+    if (paperWidthMm > 0 && paperHeightMm > 0) {
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#d8d8d6";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.fillRect(ox, oy, paperWidthMm * scale, paperHeightMm * scale);
+      ctx.strokeRect(ox, oy, paperWidthMm * scale, paperHeightMm * scale);
+
+      // Margin guide
+      const mw = paperWidthMm - 2 * marginMm;
+      const mh = paperHeightMm - 2 * marginMm;
+      if (marginMm > 0 && mw > 0 && mh > 0) {
+        ctx.strokeStyle = "#c8c8c6";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([1, 4]);
+        ctx.strokeRect(ox + marginMm * scale, oy + marginMm * scale, mw * scale, mh * scale);
+        ctx.setLineDash([]);
+      }
+    } else if (svgWidthMm > 0 && svgHeightMm > 0) {
       ctx.fillStyle = "#ffffff";
       ctx.strokeStyle = "#e8e8e6";
       ctx.fillRect(ox, oy, svgWidthMm * scale, svgHeightMm * scale);
       ctx.strokeRect(ox, oy, svgWidthMm * scale, svgHeightMm * scale);
     }
 
-    // Paths
+    // Paths — scaled to fit paper with margin when both are known
     if (paths && paths.length > 0) {
+      let pathOx = ox;
+      let pathOy = oy;
+      let pathS = scale;
+
+      if (paperWidthMm > 0 && paperHeightMm > 0 && svgWidthMm > 0 && svgHeightMm > 0) {
+        const drawW = Math.max(paperWidthMm - 2 * marginMm, 1);
+        const drawH = Math.max(paperHeightMm - 2 * marginMm, 1);
+        const fitScale = Math.min(drawW / svgWidthMm, drawH / svgHeightMm);
+        const offX = marginMm + (drawW - svgWidthMm * fitScale) / 2;
+        const offY = marginMm + (drawH - svgHeightMm * fitScale) / 2;
+        pathOx = ox + offX * scale;
+        pathOy = oy + offY * scale;
+        pathS = scale * fitScale;
+      }
+
       ctx.strokeStyle = "#2d2d2d";
       ctx.lineWidth = 1.25;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       for (const path of paths) {
-        if (path.length >= 2) strokePath(ctx, path, ox, oy, scale);
+        if (path.length >= 2) strokePath(ctx, path, pathOx, pathOy, pathS);
       }
     }
-  }, [paths, svgWidthMm, svgHeightMm, travelWidthMm, travelHeightMm, size]);
+  }, [paths, svgWidthMm, svgHeightMm, travelWidthMm, travelHeightMm, paperWidthMm, paperHeightMm, marginMm, size]);
 
   return (
     <div
