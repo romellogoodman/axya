@@ -218,6 +218,32 @@ body {
   }
 }
 
+// Connection indicator
+.connection-dot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &--on {
+    color: var(--color-success);
+    &::before { background: var(--color-success); }
+  }
+
+  &--off {
+    color: var(--color-danger);
+    &::before { background: var(--color-danger); }
+  }
+}
+
 // Summary pill
 .summary-pill {
   font-family: var(--font-mono);

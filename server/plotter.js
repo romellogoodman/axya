@@ -12,8 +12,9 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-const NEXTDRAW_CMD = process.env.NEXTDRAW_CMD || "nextdraw";
+const [NEXTDRAW_EXE, ...NEXTDRAW_PREFIX] = (process.env.NEXTDRAW_CMD || "nextdraw").split(" ");
 const PROGRESS_RE = /(\d+)%\s*\|?[\s#█░-]*\|?\s*\d+\/\d+/;
+const NO_DEVICE_RE = /no available nextdraw units|check your connection|unable to connect|no device|port not found|cannot connect|not respond/i;
 
 // Dummy 1×1 SVG for manual commands that require a file arg
 const DUMMY_SVG_PATH = path.join(os.tmpdir(), "axya-dummy.svg");
@@ -35,6 +36,7 @@ export class PlotterManager extends EventEmitter {
     this.startedAt = null;
     this.error = null;
     this.canHome = false;
+    this.connected = null; // null=unknown, true=connected, false=no device
 
     this.proc = null;
     this.logs = [];
@@ -51,6 +53,7 @@ export class PlotterManager extends EventEmitter {
       error: this.error,
       canHome: this.canHome,
       logVersion: this.logVersion,
+      connected: this.connected,
     };
   }
 
@@ -70,8 +73,9 @@ export class PlotterManager extends EventEmitter {
 
   /** Spawn nextdraw with the given args; stream output to the log buffer. */
   spawnCli(args, { onLine, detached = false } = {}) {
-    this.log(`$ ${NEXTDRAW_CMD} ${args.join(" ")}`, "cmd");
-    const proc = spawn(NEXTDRAW_CMD, args, {
+    const fullArgs = [...NEXTDRAW_PREFIX, ...args];
+    this.log(`$ ${NEXTDRAW_EXE} ${fullArgs.join(" ")}`, "cmd");
+    const proc = spawn(NEXTDRAW_EXE, fullArgs, {
       detached,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -97,7 +101,7 @@ export class PlotterManager extends EventEmitter {
     proc.on("error", (err) => {
       const msg =
         err.code === "ENOENT"
-          ? `'${NEXTDRAW_CMD}' not found. Install with: pip install https://software-download.bantamtools.com/nd/api/nextdraw_api.zip`
+          ? `'${NEXTDRAW_EXE}' not found. Install with: pip install https://software-download.bantamtools.com/nd/api/nextdraw_api.zip`
           : err.message;
       this.log(msg, "error");
       this.setState("error", { error: msg });
@@ -138,9 +142,11 @@ export class PlotterManager extends EventEmitter {
     this.error = null;
     this.canHome = false;
 
+    const runLines = [];
     this.proc = this.spawnCli(args, {
       detached: true,
       onLine: (line) => {
+        runLines.push(line);
         const m = line.match(PROGRESS_RE);
         if (m) {
           this.progress = Number(m[1]);
@@ -162,14 +168,18 @@ export class PlotterManager extends EventEmitter {
         this.canHome = true;
         this.setState("paused");
       } else if (code === 0) {
+        this.connected = true;
         this.progress = 100;
         this.setState("idle");
         this.emit("complete", { file: filename });
       } else {
         this.canHome = true;
-        this.setState("error", {
-          error: `nextdraw exited with code ${code}`,
-        });
+        if (NO_DEVICE_RE.test(runLines.join("\n"))) {
+          this.connected = false;
+          this.setState("error", { error: "No plotter connected" });
+        } else {
+          this.setState("error", { error: `nextdraw exited with code ${code}` });
+        }
       }
     });
   }
@@ -252,10 +262,20 @@ export class PlotterManager extends EventEmitter {
   /** Run nextdraw once and resolve when it exits. */
   runOnce(args) {
     return new Promise((resolve, reject) => {
-      const proc = this.spawnCli(args);
+      const lines = [];
+      const proc = this.spawnCli(args, { onLine: (l) => lines.push(l) });
       proc.on("close", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`nextdraw exited with code ${code}`));
+        if (code === 0) {
+          this.connected = true;
+          this.emit("change");
+          resolve();
+        } else {
+          const msg = NO_DEVICE_RE.test(lines.join("\n"))
+            ? ((this.connected = false), "No plotter connected")
+            : `nextdraw exited with code ${code}`;
+          this.emit("change");
+          reject(new Error(msg));
+        }
       });
       proc.on("error", reject);
     });

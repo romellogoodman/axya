@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,vite -c blue,green \"npm:server\" \"npm:client\"",
-    "server": "node server/index.js",
+    "server": "NEXTDRAW_CMD='python3 -m nextdraw' node server/index.js",
     "client": "vite --port=8080 --open",
     "build": "vite build",
     "lint": "eslint .",

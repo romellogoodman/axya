@@ -250,6 +250,11 @@ function App() {
                 <span className="status-badge__progress">{status.progress}%</span>
               )}
             </div>
+            {state.serverConnected && status.connected !== null && (
+              <div className={`connection-dot connection-dot--${status.connected ? "on" : "off"}`}>
+                {status.connected ? "Plotter connected" : "No plotter"}
+              </div>
+            )}
             {config && <div className="summary-pill">{summaryPill}</div>}
             <button
               className="button button--secondary"
