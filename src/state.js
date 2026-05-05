@@ -29,6 +29,7 @@ export const initialState = {
     error: null,
     canHome: false,
     logVersion: 0,
+    connected: null, // null=unknown, true=connected, false=no device
   },
 
   // File library
