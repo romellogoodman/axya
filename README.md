@@ -1,5 +1,7 @@
 # Axya
 
+> ⚠️ **Alpha** — expect rough edges, breaking changes, and bugs. Feedback welcome.
+
 A local web interface for AxiDraw and Bantam NextDraw pen plotters.
 
 Axya runs a small Node server alongside a React frontend. The server drives your plotter by shelling out to Bantam's official [`nextdraw` CLI](https://bantam.tools/nd_cli/), which handles all motion planning, path optimization, and hardware communication for both AxiDraw and NextDraw machines.
