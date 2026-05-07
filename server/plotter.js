@@ -212,7 +212,7 @@ export class PlotterManager extends EventEmitter {
     if (this.state === "plotting") throw new Error("Stop the plot first");
     if (!this.currentFile) throw new Error("No file to home from");
     const filePath = path.join(this.uploadsDir, path.basename(this.currentFile));
-    return this.runOnce([filePath, "--config", this.configPath, "--mode", "res_home"]);
+    return this.runOnce([filePath, "--config", this.configPath, "--mode", "utility", "--utility_cmd", "walk_home"]);
   }
 
   pen(direction) {
@@ -223,8 +223,8 @@ export class PlotterManager extends EventEmitter {
       "--config",
       this.configPath,
       "--mode",
-      "manual",
-      "--manual_cmd",
+      "utility",
+      "--utility_cmd",
       cmd,
     ]);
   }
@@ -237,8 +237,8 @@ export class PlotterManager extends EventEmitter {
         "--config",
         this.configPath,
         "--mode",
-        "manual",
-        "--manual_cmd",
+        "utility",
+        "--utility_cmd",
         "walk_mmx",
         "--dist",
         String(dx),
@@ -250,8 +250,8 @@ export class PlotterManager extends EventEmitter {
         "--config",
         this.configPath,
         "--mode",
-        "manual",
-        "--manual_cmd",
+        "utility",
+        "--utility_cmd",
         "walk_mmy",
         "--dist",
         String(dy),
