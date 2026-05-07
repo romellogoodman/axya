@@ -37,11 +37,19 @@ saxi sources are still vendored under `docs/reference-apps/` for reference.
 
 Pause sends `SIGINT` to the `nextdraw` process group. `nextdraw` traps it, writes the current position into the SVG's `<plotdata>` element (because `--output_file` points back at the same file), and exits. Resume is a fresh subprocess with `--mode res_plot`, which reads that saved state and continues from where it stopped. This means **pause/resume survives a server restart or browser reload** — the state lives in the SVG file on disk.
 
-Stop is `SIGKILL`. Home is `--mode res_home`, which uses the same saved state to plan a return-to-origin move.
+Stop is `SIGKILL`. Home is `--mode utility --utility_cmd walk_home`, which uses the saved state to plan a return-to-origin move.
 
 ### Manual commands
 
-Pen up/down and XY jog spawn `nextdraw` with `--mode manual --manual_cmd raise_pen|lower_pen|walk_mmx|walk_mmy`. Manual commands need a file argument even though they don't read it, so the server writes a 1×1 dummy SVG to `/tmp` at startup.
+Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise_pen|lower_pen|walk_mmx|walk_mmy`. Manual commands need a file argument even though they don't read it, so the server writes a 1×1 dummy SVG to `/tmp` at startup.
+
+### Connection detection
+
+`PlotterManager.connected` is `null` until the first command runs, then `true` on a clean exit or `false` when the output matches `NO_DEVICE_RE` (e.g. "No available nextdraw units found on USB"). The sidebar shows a green/red dot reflecting this.
+
+### Invoking nextdraw
+
+`NEXTDRAW_CMD` is split on whitespace so the executable can be multi-word — e.g. `NEXTDRAW_CMD='python3 -m nextdraw'` (the default in `package.json`) spawns `python3` with `-m nextdraw` prepended to every arg list. The `nextdraw` pip package doesn't install a standalone binary; it only exposes the Python module.
 
 ## Files
 
@@ -98,6 +106,6 @@ Written to `db/nextdraw.conf.py` and passed to every `nextdraw` invocation via `
 ## What the earlier WebSerial version had that this doesn't
 
 - **Zero-install** — the old version ran entirely in Chrome via WebSerial. This one needs Node, Python, and `nextdraw` installed.
-- **Fit-to-page / margins** — the old version scaled any SVG to fit your chosen paper. `nextdraw` plots the SVG at its declared physical size; author your SVG at the final dimensions (or use `auto_rotate`).
+- **Fit-to-page / margins** — the sidebar offers paper presets (Letter, Legal, Tabloid, A4, A3, Arch A/B, Custom) and a margin control that draws a paper rect and dotted margin guide on the preview and scales the SVG to fit. This is preview-only; `nextdraw` still plots the SVG at its declared physical size, so author your SVG at the final dimensions (or use `auto_rotate`).
 - **Per-path progress overlay** — the old canvas recolored completed paths. Progress from `nextdraw` is a single percentage, so the new preview shows a top progress bar instead.
 - **Instant pen up/down** — each manual command now forks a subprocess (~1s) rather than sending a serial byte.
