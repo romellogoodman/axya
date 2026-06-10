@@ -223,7 +223,10 @@ app.post(
   wrap((req) => {
     const { file, layer } = req.body || {};
     if (!file) throw new Error("file is required");
-    plotter.plot(file, { layer });
+    if (layer != null && !Number.isInteger(Number(layer))) {
+      throw new Error("layer must be an integer");
+    }
+    plotter.plot(file, { layer: layer != null ? Number(layer) : null });
     return plotter.status();
   })
 );
