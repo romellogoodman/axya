@@ -33,6 +33,28 @@ const plotter = new PlotterManager({
 });
 
 const app = express();
+
+// DNS-rebinding / CSRF guard. This server controls physical hardware and binds
+// to localhost only, so every request must originate from a localhost page.
+// Reject any request whose Host or Origin header is not loopback. Without this,
+// a page on any site you visit could fire no-body "simple request" POSTs
+// (pause/stop/home/pen) cross-origin and move the carriage or kill a plot.
+const LOCALHOST_HOST_RE = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const LOCALHOST_ORIGIN_RE =
+  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+
+app.use((req, res, next) => {
+  const host = req.headers.host;
+  if (host && !LOCALHOST_HOST_RE.test(host)) {
+    return res.status(403).json({ error: "Forbidden host" });
+  }
+  const origin = req.headers.origin;
+  if (origin && !LOCALHOST_ORIGIN_RE.test(origin)) {
+    return res.status(403).json({ error: "Forbidden origin" });
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.text({ type: "image/svg+xml", limit: "25mb" }));
 
