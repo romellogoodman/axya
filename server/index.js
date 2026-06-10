@@ -285,23 +285,27 @@ const CONFIG_BOOL_KEYS = new Set([
   "hiding",
   "auto_rotate",
 ]);
-const CONFIG_NUM_KEYS = new Set([
-  "model",
-  "penlift",
-  "pen_pos_up",
-  "pen_pos_down",
-  "pen_rate_raise",
-  "pen_rate_lower",
-  "pen_delay_up",
-  "pen_delay_down",
-  "speed_pendown",
-  "speed_penup",
-  "accel",
-  "reordering",
-  "copies",
-  "page_delay",
-  "resolution",
-]);
+// Numeric keys with their accepted [min, max] range. The UI enforces these
+// client-side only, so a crafted request could otherwise write nonsense like
+// speed_pendown=-1e9 or pen_pos_up=99999 into the config the plotter runs.
+const CONFIG_NUM_RANGES = {
+  model: [1, 9],
+  penlift: [1, 3],
+  pen_pos_up: [0, 100],
+  pen_pos_down: [0, 100],
+  pen_rate_raise: [1, 100],
+  pen_rate_lower: [1, 100],
+  pen_delay_up: [-1000, 10000],
+  pen_delay_down: [-1000, 10000],
+  speed_pendown: [1, 110],
+  speed_penup: [1, 110],
+  accel: [1, 100],
+  reordering: [0, 4],
+  copies: [0, 9999],
+  page_delay: [0, 3600],
+  resolution: [1, 3],
+};
+const CONFIG_NUM_KEYS = new Set(Object.keys(CONFIG_NUM_RANGES));
 
 app.post(
   "/api/config",
@@ -314,6 +318,10 @@ app.post(
       } else if (CONFIG_NUM_KEYS.has(k)) {
         const n = Number(v);
         if (!Number.isFinite(n)) throw new Error(`Invalid value for ${k}`);
+        const [min, max] = CONFIG_NUM_RANGES[k];
+        if (n < min || n > max) {
+          throw new Error(`${k} must be between ${min} and ${max}`);
+        }
         lines.push(`${k} = ${n}`);
       } else {
         throw new Error(`Unknown config key: ${k}`);
