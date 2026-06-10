@@ -30,6 +30,17 @@ function App() {
   const model = PLOTTER_MODELS[config?.model] || PLOTTER_MODELS[8];
   const busy = status.state === "plotting";
 
+  // Tick locally so elapsed/ETA advance between SSE frames. The server sends
+  // startedAt (a stable timestamp) rather than elapsed, which also lets the
+  // SSE dedup suppress identical frames.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (status.state !== "plotting") return undefined;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [status.state]);
+  const elapsed = status.startedAt ? (now - status.startedAt) / 1000 : 0;
+
   // ---- helpers ----
   const setError = useCallback(
     (err) => dispatch({ type: "SET_ERROR", error: err?.message || String(err) }),
@@ -210,7 +221,7 @@ function App() {
   // ---- derived ----
   const eta =
     status.progress > 0 && status.progress < 100
-      ? (status.elapsed * (100 - status.progress)) / status.progress
+      ? (elapsed * (100 - status.progress)) / status.progress
       : null;
 
   const summaryPill = config
@@ -472,7 +483,7 @@ function App() {
             {busy && (
               <div className="stats-bar">
                 <span className="stats-bar__item">
-                  {formatDuration(status.elapsed)} elapsed
+                  {formatDuration(elapsed)} elapsed
                 </span>
                 {eta != null && (
                   <span className="stats-bar__item">
