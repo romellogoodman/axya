@@ -231,6 +231,9 @@ export class PlotterManager extends EventEmitter {
 
   pen(direction) {
     if (this.state === "plotting") throw new Error("Plot in progress");
+    if (direction !== "up" && direction !== "down") {
+      throw new Error(`Invalid pen direction: ${direction}`);
+    }
     const cmd = direction === "up" ? "raise_pen" : "lower_pen";
     return this.runOnce([
       DUMMY_SVG_PATH,
