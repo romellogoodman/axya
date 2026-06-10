@@ -291,6 +291,7 @@ export class PlotterManager extends EventEmitter {
 
   /** Run --preview --report_time and parse the estimate. */
   async estimate(filename, layer = null) {
+    if (this.state === "plotting") throw new Error("Plot in progress");
     const filePath = path.join(this.uploadsDir, path.basename(filename));
     if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filename}`);
 
