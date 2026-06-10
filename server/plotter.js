@@ -189,7 +189,7 @@ export class PlotterManager extends EventEmitter {
       throw new Error("Not plotting");
     }
     this.pauseRequested = true;
-    process.kill(-this.proc.pid, "SIGINT");
+    this.killGroup(this.proc.pid, "SIGINT");
   }
 
   resume() {
@@ -205,7 +205,21 @@ export class PlotterManager extends EventEmitter {
       this.setState("idle", { currentFile: null, canHome: false, progress: 0 });
       return;
     }
-    process.kill(-this.proc.pid, "SIGKILL");
+    this.killGroup(this.proc.pid, "SIGKILL");
+  }
+
+  /**
+   * Signal the detached process group. Wraps process.kill, which throws ESRCH
+   * if the process already exited (a race against close) and would otherwise
+   * surface as a spurious 400, and guards against a NaN pid from a failed spawn.
+   */
+  killGroup(pid, signal) {
+    if (pid == null) return;
+    try {
+      process.kill(-pid, signal);
+    } catch (err) {
+      if (err.code !== "ESRCH") throw err;
+    }
   }
 
   home() {
