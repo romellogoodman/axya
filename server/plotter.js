@@ -49,7 +49,7 @@ export class PlotterManager extends EventEmitter {
       currentFile: this.currentFile,
       currentLayer: this.currentLayer,
       progress: this.progress,
-      elapsed: this.startedAt ? (Date.now() - this.startedAt) / 1000 : 0,
+      startedAt: this.startedAt,
       error: this.error,
       canHome: this.canHome,
       logVersion: this.logVersion,

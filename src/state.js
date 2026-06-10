@@ -25,7 +25,7 @@ export const initialState = {
     currentFile: null,
     currentLayer: null,
     progress: 0,
-    elapsed: 0,
+    startedAt: null,
     error: null,
     canHome: false,
     logVersion: 0,
