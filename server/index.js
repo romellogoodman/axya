@@ -89,7 +89,7 @@ function isSvg(text) {
 
 function safeUploadPath(name) {
   const p = path.join(UPLOADS_DIR, path.basename(name));
-  if (!p.startsWith(UPLOADS_DIR)) throw new Error("bad path");
+  if (!p.startsWith(UPLOADS_DIR + path.sep)) throw new Error("bad path");
   return p;
 }
 
