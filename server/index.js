@@ -70,6 +70,23 @@ function uniqueUploadName(original) {
   return name;
 }
 
+// Lightweight SVG validation: the first XML element must be <svg>. Strips the
+// optional BOM, XML prolog, DOCTYPE, and leading comments before checking.
+function isSvg(text) {
+  let s = text.replace(/^﻿/, "").trimStart();
+  // Drop prolog / doctype / comments that may precede the root element.
+  let prev;
+  do {
+    prev = s;
+    s = s
+      .replace(/^<\?xml\b[^>]*\?>/i, "")
+      .replace(/^<!DOCTYPE\b[^>]*>/i, "")
+      .replace(/^<!--[\s\S]*?-->/, "")
+      .trimStart();
+  } while (s !== prev);
+  return /^<svg[\s>]/i.test(s);
+}
+
 function safeUploadPath(name) {
   const p = path.join(UPLOADS_DIR, path.basename(name));
   if (!p.startsWith(UPLOADS_DIR)) throw new Error("bad path");
@@ -157,6 +174,12 @@ app.post(
     const original = req.query.name;
     if (!original || typeof req.body !== "string" || !req.body.length) {
       throw new Error("Missing file name or body");
+    }
+    // The body is written to disk, fed to the nextdraw CLI, and rendered as an
+    // <img>. Only accept content that actually parses as XML with an <svg>
+    // root element; a client-side extension check is not enough.
+    if (!isSvg(req.body)) {
+      throw new Error("Upload is not a valid SVG");
     }
     const name = uniqueUploadName(original);
     fs.writeFileSync(path.join(UPLOADS_DIR, name), req.body);
