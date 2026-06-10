@@ -231,6 +231,14 @@ export class PlotterManager extends EventEmitter {
 
   async jog(dx, dy) {
     if (this.state === "plotting") throw new Error("Plot in progress");
+    // dx/dy reach the CLI as --dist (mm). Reject non-finite or absurd values
+    // so "Infinity"/1e9 can't drive the carriage off its travel area.
+    const MAX_JOG_MM = 1000;
+    for (const d of [dx, dy]) {
+      if (!Number.isFinite(d) || Math.abs(d) > MAX_JOG_MM) {
+        throw new Error(`Jog distance out of range (±${MAX_JOG_MM} mm)`);
+      }
+    }
     if (dx) {
       await this.runOnce([
         DUMMY_SVG_PATH,
