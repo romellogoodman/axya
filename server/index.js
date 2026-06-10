@@ -289,7 +289,7 @@ const CONFIG_BOOL_KEYS = new Set([
 // client-side only, so a crafted request could otherwise write nonsense like
 // speed_pendown=-1e9 or pen_pos_up=99999 into the config the plotter runs.
 const CONFIG_NUM_RANGES = {
-  model: [1, 9],
+  model: [1, 10],
   penlift: [1, 3],
   pen_pos_up: [0, 100],
   pen_pos_down: [0, 100],
