@@ -51,6 +51,29 @@
         "model": 10
       }
     },
+    "plot-shapes-model1": {
+      "svg": "shapes.svg",
+      "options": {
+        "model": 1
+      }
+    },
+    "plot-cold-homing-model10": {
+      "svg": "square-circle.svg",
+      "options": {
+        "model": 10
+      },
+      "fake": {
+        "homed": false,
+        "motors_on": false,
+        "start_x_mm": 400
+      }
+    },
+    "plot-layers-model1": {
+      "svg": "layers.svg",
+      "options": {
+        "model": 1
+      }
+    },
     "plot-handling-2": {
       "svg": "shapes.svg",
       "options": {

@@ -3,16 +3,19 @@ import assert from "node:assert/strict";
 import { makeHarness } from "./helpers/machineHarness.ts";
 import { caseNames, loadGolden } from "./helpers/fixtures.ts";
 
-// Layer cases switch to temporary (+h) heights mid-plot; plot-layers-all also
-// has a layer delay right after one raise.
-const LAYER_HEIGHTS = new Set(["plot-layers-all", "plot-layers-mode-2"]);
+// layers.svg switches to temporary (+h) heights mid-plot and has a layer delay
+// right after one raise; the run-loop tests cover those cases.
+const usesLayerCodes = (name: string) => {
+  const svg = loadGolden(name).case.svg;
+  return typeof svg === "string" && svg.endsWith("/layers.svg");
+};
 
 const spLines = (name: string) =>
   loadGolden(name)
     .commands.map(([ms, line], i, all) => ({ ms, line, next: all[i + 1] }))
     .filter(({ line }) => /^SP,[01],/.test(line));
 
-for (const name of caseNames().filter((n) => !LAYER_HEIGHTS.has(n))) {
+for (const name of caseNames().filter((n) => !usesLayerCodes(n))) {
   const sps = spLines(name);
   if (sps.length === 0) continue;
 
