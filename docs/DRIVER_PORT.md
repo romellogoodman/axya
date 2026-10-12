@@ -106,7 +106,7 @@ test/
 | 3 | SVG digest + layer codes + boundsclip | Digest matches the oracle's plob for every fixture |
 | 4 | Optimizations (join, supersample, random start, reorder) | Path order and geometry match the oracle |
 | 5 | S-curve planner + command generation | Motion commands match the oracle exactly |
-| 6 | Transport, commands, pen, status, homing (against the fake EBB) | Full setup and teardown streams match the oracle |
+| 6 | Transport, commands, pen, status, homing (against the fake EBB) | **Done.** Setup/teardown and utility streams (incl. full limit-switch homing and its failure path) match the oracle; pen timing matches every golden |
 | 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | Full plot, pause, and resume streams match; preview times match |
 | 8 | `Driver` interface over the CLI backend; `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | App works end-to-end against the fake EBB |
 | 9 | Hidden-line removal, Snap Colors, Hatch | Matches oracle output |

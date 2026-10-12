@@ -20,6 +20,24 @@ server/driver/config.ts              nextdrawcore/nextdraw_conf.py,        GPL-2
 server/driver/models.ts              nextdrawcore/nextdraw_options/        GPL-2.0-or-later
                                      models.py
                                      (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/ebb/ebb3.ts            plotink/ebb3_serial.py                MIT
+                                     (c) 2026 Windell H. Oskay, Bantam Tools
+server/driver/ebb/motion.ts          plotink/ebb3_motion.py                MIT
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/machine/homing.ts      nextdrawcore/homing.py                MIT
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/machine/status.ts      nextdrawcore/serial_utils.py          GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/machine/pen.ts         nextdrawcore/pen_handling.py          GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/machine/utility.ts     nextdrawcore/nextdraw.py (setup,      GPL-2.0-or-later
+                                     utility and connect commands)
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/run/status.ts          nextdrawcore/plot_status.py,          GPL-2.0-or-later
+                                     plotink/text_utils.py (format_hms)    MIT
+                                     (c) 2024-2026 Windell H. Oskay, Bantam Tools
+server/driver/warnings.ts            nextdrawcore/plot_warnings.py         GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
 
 Test-only code in test/sim/ models the EiBotBoard firmware v3.1.7
 (docs/reference-apps/ebb-firmware/source/, BSD-3-Clause, Schmalz Haus LLC)
