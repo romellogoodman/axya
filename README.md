@@ -11,7 +11,7 @@ Axya runs a small Node server alongside a React frontend. The server drives your
 - **File library** — upload and manage SVGs, they persist on disk
 - **Canvas preview** — see paths against your plotter's travel area before committing
 - **Inkscape layer mode** — plot one numbered layer at a time for multi-pen work
-- **Pause / Resume** — survives a page reload; state is saved into the SVG by `nextdraw`
+- **Pause / Resume** — from the UI or the plotter's pause button; survives a page reload because `nextdraw` saves state into the SVG
 - **Stop & Home** — cancel cleanly and return the carriage
 - **Manual XY jog + pen up/down** — align your pen before plotting
 - **Time estimate** — duration and travel distance before you commit
@@ -22,20 +22,20 @@ Axya runs a small Node server alongside a React frontend. The server drives your
 
 ## Prerequisites
 
-### 1. Node.js 18+
+### 1. Node.js 20.19+ (or 22.12+)
 
 ### 2. The `nextdraw` CLI
 
-Axya delegates all plotter control to Bantam's CLI. It must be installed and on your `PATH`:
+Axya delegates all plotter control to Bantam's CLI, installed as a Python module:
 
 ```bash
 python3 -m pip install https://software-download.bantamtools.com/nd/api/nextdraw_api.zip
-nextdraw --version
+python3 -m nextdraw --version
 ```
 
 The `nextdraw` CLI supports **both** product lines: AxiDraw models 1–7 (V2/V3, SE/A3, XLX, MiniKit, SE/A1, SE/A2, V3/B6) and Bantam NextDraw models 8–10 (8511, 1117, 2234). Full reference: [bantam.tools/nd_cli](https://bantam.tools/nd_cli/). If migrating from `axicli`, see the [migration guide](https://bantam.tools/nd_migrate/).
 
-> If `nextdraw` isn't on your PATH (e.g. it lives in a virtualenv), set `NEXTDRAW_CMD=/full/path/to/nextdraw` before starting the server.
+> The server runs `python3 -m nextdraw` by default. If nextdraw lives in a different interpreter (e.g. a virtualenv), set `NEXTDRAW_CMD`: `NEXTDRAW_CMD='/path/to/venv/bin/python -m nextdraw' npm run dev`. Set `AXYA_PORT` to move the backend off port 4000.
 
 ## Quick Start
 

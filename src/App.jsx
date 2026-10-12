@@ -2,7 +2,12 @@ import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 import "./App.scss";
 
 import { api, subscribeStatus } from "./lib/api.js";
-import { parseSVG, PLOTTER_MODELS, PaperSizes, formatDuration } from "./lib/svg.js";
+import {
+  parseSVG,
+  PLOTTER_MODELS,
+  PAPER_SIZES,
+  formatDuration,
+} from "./lib/svg.js";
 import { reducer, initialState, PERSISTED_KEYS, STORAGE_KEY } from "./state.js";
 
 import { Preview } from "./Preview.jsx";
@@ -21,8 +26,6 @@ const STATE_LABELS = {
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isDragging, setIsDragging] = useState(false);
-  const [penUp, setPenUp] = useState(80);
-  const [penDown, setPenDown] = useState(30);
   const prevStateRef = useRef(state.status.state);
   const logVersionRef = useRef(-1);
 
@@ -43,39 +46,37 @@ function App() {
 
   // ---- helpers ----
   const setError = useCallback(
-    (err) => dispatch({ type: "SET_ERROR", error: err?.message || String(err) }),
+    (err) =>
+      dispatch({ type: "SET_ERROR", error: err?.message || String(err) }),
     []
   );
 
   const run = useCallback(
-    (fn) =>
-      Promise.resolve()
-        .then(fn)
-        .catch(setError),
+    (fn) => Promise.resolve().then(fn).catch(setError),
     [setError]
   );
 
   const refreshFiles = useCallback(
-    () => run(async () => dispatch({ type: "SET_FILES", files: await api.files() })),
+    () =>
+      run(async () =>
+        dispatch({ type: "SET_FILES", files: await api.files() })
+      ),
     [run]
   );
 
   const refreshConfig = useCallback(
-    () => run(async () => dispatch({ type: "SET_CONFIG", config: await api.config() })),
+    () =>
+      run(async () =>
+        dispatch({ type: "SET_CONFIG", config: await api.config() })
+      ),
     [run]
   );
 
   const refreshLogs = useCallback(
-    () => run(async () => dispatch({ type: "SET_LOGS", logs: await api.logs() })),
+    () =>
+      run(async () => dispatch({ type: "SET_LOGS", logs: await api.logs() })),
     [run]
   );
-
-  useEffect(() => {
-    if (state.config) {
-      setPenUp(state.config.pen_pos_up);
-      setPenDown(state.config.pen_pos_down);
-    }
-  }, [state.config]);
 
   const handlePenPosSave = useCallback(
     (key, value) =>
@@ -119,7 +120,7 @@ function App() {
         api.layers(state.selectedFile),
       ]);
       const { paths, widthMm, heightMm } = parseSVG(svgString);
-      dispatch({ type: "SET_SVG", svgString, paths, widthMm, heightMm });
+      dispatch({ type: "SET_SVG", paths, widthMm, heightMm });
       dispatch({ type: "SET_LAYERS", layers });
     });
   }, [state.selectedFile, run]);
@@ -167,7 +168,8 @@ function App() {
     (name) =>
       run(async () => {
         await api.deleteFile(name);
-        if (name === state.selectedFile) dispatch({ type: "SELECT_FILE", file: null });
+        if (name === state.selectedFile)
+          dispatch({ type: "SELECT_FILE", file: null });
         await refreshFiles();
       }),
     [run, refreshFiles, state.selectedFile]
@@ -258,11 +260,15 @@ function App() {
                   : "Server offline"}
               </span>
               {busy && (
-                <span className="status-badge__progress">{status.progress}%</span>
+                <span className="status-badge__progress">
+                  {status.progress}%
+                </span>
               )}
             </div>
             {state.serverConnected && status.connected !== null && (
-              <div className={`connection-dot connection-dot--${status.connected ? "on" : "off"}`}>
+              <div
+                className={`connection-dot connection-dot--${status.connected ? "on" : "off"}`}
+              >
                 {status.connected ? "Plotter connected" : "No plotter"}
               </div>
             )}
@@ -280,7 +286,9 @@ function App() {
             <h2 className="panel__title">File</h2>
             <button
               className="file-select"
-              onClick={() => dispatch({ type: "TOGGLE_FILE_LIBRARY", show: true })}
+              onClick={() =>
+                dispatch({ type: "TOGGLE_FILE_LIBRARY", show: true })
+              }
             >
               <span className="file-select__name">
                 {state.selectedFile || "Choose a file…"}
@@ -298,10 +306,14 @@ function App() {
                 <select
                   className="select"
                   value={state.paperSize}
-                  onChange={(e) => dispatch({ type: "SET_PAPER_SIZE", size: e.target.value })}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_PAPER_SIZE", size: e.target.value })
+                  }
                 >
-                  {Object.keys(PaperSizes).map((name) => (
-                    <option key={name} value={name}>{name}</option>
+                  {Object.keys(PAPER_SIZES).map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
                   ))}
                   <option value="Custom">Custom</option>
                 </select>
@@ -315,7 +327,10 @@ function App() {
                   min={0}
                   step={0.25}
                   onChange={(e) =>
-                    dispatch({ type: "SET_MARGIN", value: Number(e.target.value) * 25.4 })
+                    dispatch({
+                      type: "SET_MARGIN",
+                      value: Number(e.target.value) * 25.4,
+                    })
                   }
                 />
               </div>
@@ -330,7 +345,10 @@ function App() {
                   min={0.1}
                   step={0.5}
                   onChange={(e) =>
-                    dispatch({ type: "SET_PAPER_WIDTH", value: Number(e.target.value) * 25.4 })
+                    dispatch({
+                      type: "SET_PAPER_WIDTH",
+                      value: Number(e.target.value) * 25.4,
+                    })
                   }
                 />
               </div>
@@ -343,7 +361,10 @@ function App() {
                   min={0.1}
                   step={0.5}
                   onChange={(e) =>
-                    dispatch({ type: "SET_PAPER_HEIGHT", value: Number(e.target.value) * 25.4 })
+                    dispatch({
+                      type: "SET_PAPER_HEIGHT",
+                      value: Number(e.target.value) * 25.4,
+                    })
                   }
                 />
               </div>
@@ -357,7 +378,9 @@ function App() {
               <div className="layer-chips">
                 <button
                   className={`layer-chips__chip ${state.selectedLayer == null ? "layer-chips__chip--active" : ""}`}
-                  onClick={() => dispatch({ type: "SELECT_LAYER", layer: null })}
+                  onClick={() =>
+                    dispatch({ type: "SELECT_LAYER", layer: null })
+                  }
                 >
                   All
                 </button>
@@ -421,25 +444,29 @@ function App() {
                 <div className="form-group">
                   <label>Up %</label>
                   <input
+                    key={config.pen_pos_up}
                     type="number"
                     className="input"
-                    value={penUp}
+                    defaultValue={config.pen_pos_up}
                     min={0}
                     max={100}
-                    onChange={(e) => setPenUp(Number(e.target.value))}
-                    onBlur={(e) => handlePenPosSave("pen_pos_up", Number(e.target.value))}
+                    onBlur={(e) =>
+                      handlePenPosSave("pen_pos_up", Number(e.target.value))
+                    }
                   />
                 </div>
                 <div className="form-group">
                   <label>Down %</label>
                   <input
+                    key={config.pen_pos_down}
                     type="number"
                     className="input"
-                    value={penDown}
+                    defaultValue={config.pen_pos_down}
                     min={0}
                     max={100}
-                    onChange={(e) => setPenDown(Number(e.target.value))}
-                    onBlur={(e) => handlePenPosSave("pen_pos_down", Number(e.target.value))}
+                    onBlur={(e) =>
+                      handlePenPosSave("pen_pos_down", Number(e.target.value))
+                    }
                   />
                 </div>
               </div>

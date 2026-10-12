@@ -26,7 +26,9 @@ export function JogPad({ onJog, onPen, onHome, canHome, busy, onClose }) {
             className="jog-pad__btn jog-pad__btn--home"
             disabled={busy || !canHome}
             onClick={onHome}
-            title={canHome ? "Return to home" : "Home available after pause/stop"}
+            title={
+              canHome ? "Return to home" : "Home available after pause/stop"
+            }
           >
             ⌂
           </button>

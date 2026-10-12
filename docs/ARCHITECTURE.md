@@ -37,6 +37,8 @@ saxi sources are still vendored under `docs/reference-apps/` for reference.
 
 Pause sends `SIGINT` to the `nextdraw` process group. `nextdraw` traps it, writes the current position into the SVG's `<plotdata>` element (because `--output_file` points back at the same file), and exits. Resume is a fresh subprocess with `--mode res_plot`, which reads that saved state and continues from where it stopped. This means **pause/resume survives a server restart or browser reload** — the state lives in the SVG file on disk.
 
+Pressing the pause button on the plotter takes the same path from inside `nextdraw`. Every resumable pause exits with code 1 and prints "Use the resume feature to continue", which is how `PlotterManager` tells a pause from an error.
+
 Stop is `SIGKILL`. Home is `--mode utility --utility_cmd walk_home`, which uses the saved state to plan a return-to-origin move.
 
 ### Manual commands
@@ -45,11 +47,15 @@ Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise
 
 ### Connection detection
 
-`PlotterManager.connected` is `null` until the first command runs, then `true` on a clean exit or `false` when the output matches `NO_DEVICE_RE` (e.g. "No available nextdraw units found on USB"). The sidebar shows a green/red dot reflecting this.
+`PlotterManager.connected` is `null` until the first command runs, then `true` on a clean exit or `false` when the output matches `NO_DEVICE_RE` ("No available nextdraw units found on USB", "Failed to connect to …", or "USB connection lost during plot").
+
+### Progress
+
+`--progress` enables a tqdm bar (`ascii=True`) on stderr, e.g. `Plot Progress:  45%|####5     | 123/273`. `PROGRESS_RE` reads the percentage from lines labelled `Plot Progress` or `Copy …`, ignoring the `Page delay` / `Layer delay` bars. The sidebar shows a green/red dot reflecting this.
 
 ### Invoking nextdraw
 
-`NEXTDRAW_CMD` is split on whitespace so the executable can be multi-word — e.g. `NEXTDRAW_CMD='python3 -m nextdraw'` (the default in `package.json`) spawns `python3` with `-m nextdraw` prepended to every arg list. The `nextdraw` pip package doesn't install a standalone binary; it only exposes the Python module.
+`NEXTDRAW_CMD` (default `python3 -m nextdraw`, set in `server/plotter.js`) is split on whitespace, so it spawns `python3` with `-m nextdraw` prepended to every arg list. The `nextdraw` pip package doesn't install a standalone binary; it only exposes the Python module.
 
 ## Files
 
@@ -101,7 +107,9 @@ Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise
 
 Written to `db/nextdraw.conf.py` and passed to every `nextdraw` invocation via `--config`. See the [CLI reference](https://bantam.tools/nd_cli/) for full semantics.
 
-`model`, `penlift`, `pen_pos_up/down`, `pen_rate_raise/lower`, `pen_delay_up/down`, `speed_pendown/penup`, `accel`, `const_speed`, `reordering`, `random_start`, `hiding`, `auto_rotate`, `copies`, `page_delay`, `resolution`
+`model`, `penlift`, `pen_pos_up/down`, `pen_rate_raise/lower`, `pen_delay_up/down`, `handling`, `speed_pendown/penup`, `accel`, `reordering`, `random_start`, `hiding`, `auto_rotate`, `copies`, `page_delay`
+
+In nextdraw 1.x, `handling` (1 technical drawing, 2 handwriting, 3 sketching, 4 constant speed) sets resolution and constant-speed mode. Top-level `resolution` and `const_speed` keys are overwritten by it, so axya doesn't expose them. `GET /api/config` returns only allowlisted keys.
 
 ## What the earlier WebSerial version had that this doesn't
 

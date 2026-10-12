@@ -2,9 +2,16 @@
  * App state: initial shape, reducer, localStorage persistence.
  */
 
-import { PaperSizes } from "./lib/svg.js";
+import { PAPER_SIZES } from "./lib/svg.js";
 
-export const PERSISTED_KEYS = ["selectedFile", "selectedLayer", "paperSize", "paperWidthMm", "paperHeightMm", "marginMm"];
+export const PERSISTED_KEYS = [
+  "selectedFile",
+  "selectedLayer",
+  "paperSize",
+  "paperWidthMm",
+  "paperHeightMm",
+  "marginMm",
+];
 export const STORAGE_KEY = "axya:settings";
 
 function loadPersisted() {
@@ -38,7 +45,6 @@ export const initialState = {
   selectedLayer: null,
 
   // Selected-file derived data (fetched on selection)
-  svgString: null,
   paths: null,
   svgWidthMm: 0,
   svgHeightMm: 0,
@@ -55,8 +61,8 @@ export const initialState = {
 
   // Paper size
   paperSize: "Letter",
-  paperWidthMm: PaperSizes.Letter.width,
-  paperHeightMm: PaperSizes.Letter.height,
+  paperWidthMm: PAPER_SIZES.Letter.width,
+  paperHeightMm: PAPER_SIZES.Letter.height,
   marginMm: 12.7, // 0.5 in
 
   // UI
@@ -85,7 +91,6 @@ export function reducer(state, action) {
         ...state,
         selectedFile: action.file,
         selectedLayer: null,
-        svgString: null,
         paths: null,
         layers: [],
         estimate: null,
@@ -94,7 +99,6 @@ export function reducer(state, action) {
     case "SET_SVG":
       return {
         ...state,
-        svgString: action.svgString,
         paths: action.paths,
         svgWidthMm: action.widthMm,
         svgHeightMm: action.heightMm,
@@ -121,11 +125,13 @@ export function reducer(state, action) {
       return { ...state, error: null };
 
     case "SET_PAPER_SIZE": {
-      const size = PaperSizes[action.size];
+      const size = PAPER_SIZES[action.size];
       return {
         ...state,
         paperSize: action.size,
-        ...(size ? { paperWidthMm: size.width, paperHeightMm: size.height } : {}),
+        ...(size
+          ? { paperWidthMm: size.width, paperHeightMm: size.height }
+          : {}),
       };
     }
     case "SET_PAPER_WIDTH":
@@ -136,7 +142,10 @@ export function reducer(state, action) {
       return { ...state, marginMm: action.value };
 
     case "TOGGLE_FILE_LIBRARY":
-      return { ...state, showFileLibrary: action.show ?? !state.showFileLibrary };
+      return {
+        ...state,
+        showFileLibrary: action.show ?? !state.showFileLibrary,
+      };
     case "TOGGLE_CONFIG":
       return { ...state, showConfig: action.show ?? !state.showConfig };
     case "TOGGLE_JOG":

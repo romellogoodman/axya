@@ -11,8 +11,7 @@ export function LogPanel({ logs, onClose }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [logs]);
 

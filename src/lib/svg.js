@@ -65,29 +65,34 @@ export function parseSVG(svgString) {
 }
 
 /**
- * nextdraw `model` config values → travel area (mm).
- * See https://bantam.tools/nd_cli/#model
+ * nextdraw `model` config values → travel area (mm). Travel is copied in
+ * inches from nextdrawcore/nextdraw_options/models.py (nextdraw 1.x).
  */
+const plotter = (name, xIn, yIn) => ({
+  name,
+  width: xIn * 25.4,
+  height: yIn * 25.4,
+});
 export const PLOTTER_MODELS = {
-  1: { name: "AxiDraw V2/V3/SE-A4", width: 300, height: 218 },
-  2: { name: "AxiDraw V3/A3 or SE/A3", width: 430, height: 297 },
-  3: { name: "AxiDraw V3 XLX", width: 595, height: 218 },
-  4: { name: "AxiDraw MiniKit", width: 160, height: 101 },
-  5: { name: "AxiDraw SE/A1", width: 864, height: 594 },
-  6: { name: "AxiDraw SE/A2", width: 594, height: 432 },
-  7: { name: "AxiDraw V3/B6", width: 190, height: 127 },
-  8: { name: "NextDraw 8511", width: 279.4, height: 215.9 },
-  9: { name: "NextDraw 1117", width: 431.8, height: 279.4 },
-  10: { name: "NextDraw 2234", width: 863.6, height: 558.8 },
+  1: plotter("AxiDraw V3 or SE/A4", 11.81, 8.58),
+  2: plotter("AxiDraw V3/A3 or SE/A3", 16.93, 11.69),
+  3: plotter("AxiDraw V3 XLX", 23.42, 8.58),
+  4: plotter("AxiDraw MiniKit", 6.3, 4.0),
+  5: plotter("AxiDraw SE/A1", 34.02, 23.39),
+  6: plotter("AxiDraw SE/A2", 23.39, 17.01),
+  7: plotter("AxiDraw V3/B6", 7.48, 5.51),
+  8: plotter("NextDraw 8511", 11.81, 8.58),
+  9: plotter("NextDraw 1117", 16.93, 11.69),
+  10: plotter("NextDraw 2234", 34.02, 23.39),
 };
 
 /** Common paper sizes in mm (landscape: width > height) */
-export const PaperSizes = {
-  Letter:   { width: 279.4, height: 215.9 },
-  Legal:    { width: 355.6, height: 215.9 },
-  Tabloid:  { width: 431.8, height: 279.4 },
-  A4:       { width: 297,   height: 210   },
-  A3:       { width: 420,   height: 297   },
+export const PAPER_SIZES = {
+  Letter: { width: 279.4, height: 215.9 },
+  Legal: { width: 355.6, height: 215.9 },
+  Tabloid: { width: 431.8, height: 279.4 },
+  A4: { width: 297, height: 210 },
+  A3: { width: 420, height: 297 },
   "Arch A": { width: 304.8, height: 228.6 },
   "Arch B": { width: 457.2, height: 304.8 },
 };

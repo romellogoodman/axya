@@ -62,8 +62,18 @@ export function Preview({
     ctx.fillStyle = "#f8f8f7";
     ctx.fillRect(0, 0, cw, ch);
 
-    const areaW = Math.max(travelWidthMm, svgWidthMm || 0, paperWidthMm || 0, 1);
-    const areaH = Math.max(travelHeightMm, svgHeightMm || 0, paperHeightMm || 0, 1);
+    const areaW = Math.max(
+      travelWidthMm,
+      svgWidthMm || 0,
+      paperWidthMm || 0,
+      1
+    );
+    const areaH = Math.max(
+      travelHeightMm,
+      svgHeightMm || 0,
+      paperHeightMm || 0,
+      1
+    );
 
     const pad = 24;
     const availW = cw - pad * 2;
@@ -95,7 +105,12 @@ export function Preview({
         ctx.strokeStyle = "#c8c8c6";
         ctx.lineWidth = 1;
         ctx.setLineDash([1, 4]);
-        ctx.strokeRect(ox + marginMm * scale, oy + marginMm * scale, mw * scale, mh * scale);
+        ctx.strokeRect(
+          ox + marginMm * scale,
+          oy + marginMm * scale,
+          mw * scale,
+          mh * scale
+        );
         ctx.setLineDash([]);
       }
     } else if (svgWidthMm > 0 && svgHeightMm > 0) {
@@ -111,7 +126,12 @@ export function Preview({
       let pathOy = oy;
       let pathS = scale;
 
-      if (paperWidthMm > 0 && paperHeightMm > 0 && svgWidthMm > 0 && svgHeightMm > 0) {
+      if (
+        paperWidthMm > 0 &&
+        paperHeightMm > 0 &&
+        svgWidthMm > 0 &&
+        svgHeightMm > 0
+      ) {
         const drawW = Math.max(paperWidthMm - 2 * marginMm, 1);
         const drawH = Math.max(paperHeightMm - 2 * marginMm, 1);
         const fitScale = Math.min(drawW / svgWidthMm, drawH / svgHeightMm);
@@ -130,7 +150,17 @@ export function Preview({
         if (path.length >= 2) strokePath(ctx, path, pathOx, pathOy, pathS);
       }
     }
-  }, [paths, svgWidthMm, svgHeightMm, travelWidthMm, travelHeightMm, paperWidthMm, paperHeightMm, marginMm, size]);
+  }, [
+    paths,
+    svgWidthMm,
+    svgHeightMm,
+    travelWidthMm,
+    travelHeightMm,
+    paperWidthMm,
+    paperHeightMm,
+    marginMm,
+    size,
+  ]);
 
   return (
     <div

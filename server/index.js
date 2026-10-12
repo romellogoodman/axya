@@ -73,7 +73,7 @@ function uniqueUploadName(original) {
 // Lightweight SVG validation: the first XML element must be <svg>. Strips the
 // optional BOM, XML prolog, DOCTYPE, and leading comments before checking.
 function isSvg(text) {
-  let s = text.replace(/^﻿/, "").trimStart();
+  let s = text.replace(/^\uFEFF/, "").trimStart();
   // Drop prolog / doctype / comments that may precede the root element.
   let prev;
   do {
@@ -231,10 +231,22 @@ app.post(
   })
 );
 
-app.post("/api/pause", wrap(() => (plotter.pause(), plotter.status())));
-app.post("/api/resume", wrap(() => (plotter.resume(), plotter.status())));
-app.post("/api/stop", wrap(() => (plotter.stop(), plotter.status())));
-app.post("/api/home", wrap(async () => (await plotter.home(), plotter.status())));
+app.post(
+  "/api/pause",
+  wrap(() => (plotter.pause(), plotter.status()))
+);
+app.post(
+  "/api/resume",
+  wrap(() => (plotter.resume(), plotter.status()))
+);
+app.post(
+  "/api/stop",
+  wrap(() => (plotter.stop(), plotter.status()))
+);
+app.post(
+  "/api/home",
+  wrap(async () => (await plotter.home(), plotter.status()))
+);
 
 app.post(
   "/api/pen/:dir",
@@ -262,32 +274,9 @@ app.get(
 );
 
 // ---- config ----
-app.get(
-  "/api/config",
-  wrap(() => {
-    const text = fs.readFileSync(CONFIG_PATH, "utf8");
-    const config = {};
-    for (const line of text.split("\n")) {
-      const m = line.match(/^\s*(\w+)\s*=\s*(.+?)\s*$/);
-      if (!m) continue;
-      const [, key, raw] = m;
-      if (raw === "True") config[key] = true;
-      else if (raw === "False") config[key] = false;
-      else if (/^-?\d+(\.\d+)?$/.test(raw)) config[key] = Number(raw);
-      else config[key] = raw.replace(/^["']|["']$/g, "");
-    }
-    return config;
-  })
-);
-
 // The config file is executed as Python by `nextdraw --config`, so both keys
 // and values must be strictly validated to prevent code injection.
-const CONFIG_BOOL_KEYS = new Set([
-  "const_speed",
-  "random_start",
-  "hiding",
-  "auto_rotate",
-]);
+const CONFIG_BOOL_KEYS = new Set(["random_start", "hiding", "auto_rotate"]);
 // Numeric keys with their accepted [min, max] range. The UI enforces these
 // client-side only, so a crafted request could otherwise write nonsense like
 // speed_pendown=-1e9 or pen_pos_up=99999 into the config the plotter runs.
@@ -300,15 +289,36 @@ const CONFIG_NUM_RANGES = {
   pen_rate_lower: [1, 100],
   pen_delay_up: [-1000, 10000],
   pen_delay_down: [-1000, 10000],
-  speed_pendown: [1, 110],
-  speed_penup: [1, 110],
+  handling: [1, 4],
+  speed_pendown: [1, 100],
+  speed_penup: [1, 100],
   accel: [1, 100],
   reordering: [0, 4],
   copies: [0, 9999],
   page_delay: [0, 3600],
-  resolution: [1, 3],
 };
 const CONFIG_NUM_KEYS = new Set(Object.keys(CONFIG_NUM_RANGES));
+
+app.get(
+  "/api/config",
+  wrap(() => {
+    const text = fs.readFileSync(CONFIG_PATH, "utf8");
+    const config = {};
+    for (const line of text.split("\n")) {
+      const m = line.match(/^\s*(\w+)\s*=\s*(.+?)\s*$/);
+      if (!m) continue;
+      const [, key, raw] = m;
+      // Only surface keys the UI can write back; anything else in the file
+      // would be echoed back on save and rejected by POST /api/config.
+      if (!CONFIG_BOOL_KEYS.has(key) && !CONFIG_NUM_KEYS.has(key)) continue;
+      if (raw === "True") config[key] = true;
+      else if (raw === "False") config[key] = false;
+      else if (/^-?\d+(\.\d+)?$/.test(raw)) config[key] = Number(raw);
+      else config[key] = raw.replace(/^["']|["']$/g, "");
+    }
+    return config;
+  })
+);
 
 app.post(
   "/api/config",

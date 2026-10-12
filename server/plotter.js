@@ -12,9 +12,26 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-const [NEXTDRAW_EXE, ...NEXTDRAW_PREFIX] = (process.env.NEXTDRAW_CMD || "nextdraw").split(" ");
-const PROGRESS_RE = /(\d+)%\s*\|?[\s#█░-]*\|?\s*\d+\/\d+/;
-const NO_DEVICE_RE = /no available nextdraw units|check your connection|unable to connect|no device|port not found|cannot connect|not respond/i;
+// The nextdraw pip package installs no console script, only the Python module.
+const [NEXTDRAW_EXE, ...NEXTDRAW_PREFIX] = (
+  process.env.NEXTDRAW_CMD || "python3 -m nextdraw"
+)
+  .trim()
+  .split(/\s+/);
+
+// Patterns below match nextdraw 1.x output (nextdrawcore). The progress bar is
+// tqdm with ascii=True, e.g. "Plot Progress:  45%|####5     | 123/273 [...]";
+// "Copy 2 of 3" replaces the label when plotting copies. Anchoring on the
+// label skips the "Page delay" / "Layer delay" bars.
+const PROGRESS_RE = /(?:Plot Progress|Copy [\w ]+?):\s*(\d+)%\|/;
+// "No available nextdraw units found on USB." (no device at startup),
+// "Failed to connect to <model>." (port open failed), and
+// "Error: USB connection lost during plot." (cable pulled mid-plot).
+const NO_DEVICE_RE =
+  /no available nextdraw units|failed to connect|usb connection lost/i;
+// Printed for every resumable pause: SIGINT, the hardware pause button, and
+// programmatic pauses. Not printed for USB/power loss.
+const PAUSED_RE = /use the resume feature to continue/i;
 
 // Dummy 1×1 SVG for manual commands that require a file arg
 const DUMMY_SVG_PATH = path.join(os.tmpdir(), "axya-dummy.svg");
@@ -39,6 +56,7 @@ export class PlotterManager extends EventEmitter {
     this.connected = null; // null=unknown, true=connected, false=no device
 
     this.proc = null;
+    this.pauseRequested = false;
     this.logs = [];
     this.logVersion = 0;
   }
@@ -158,13 +176,15 @@ export class PlotterManager extends EventEmitter {
 
     this.proc.on("close", (code, signal) => {
       this.proc = null;
+      const output = runLines.join("\n");
+      const pauseRequested = this.pauseRequested;
+      this.pauseRequested = false;
       if (signal === "SIGKILL") {
         // stop()
         this.canHome = true;
         this.setState("idle", { progress: 0 });
-      } else if (signal === "SIGINT" || this.pauseRequested) {
-        // pause()
-        this.pauseRequested = false;
+      } else if (pauseRequested || PAUSED_RE.test(output)) {
+        // pause(), or the pause button on the machine (exits with code 1)
         this.canHome = true;
         this.setState("paused");
       } else if (code === 0) {
@@ -174,11 +194,13 @@ export class PlotterManager extends EventEmitter {
         this.emit("complete", { file: filename });
       } else {
         this.canHome = true;
-        if (NO_DEVICE_RE.test(runLines.join("\n"))) {
+        if (NO_DEVICE_RE.test(output)) {
           this.connected = false;
           this.setState("error", { error: "No plotter connected" });
         } else {
-          this.setState("error", { error: `nextdraw exited with code ${code}` });
+          this.setState("error", {
+            error: `nextdraw exited with code ${code}`,
+          });
         }
       }
     });
@@ -225,8 +247,19 @@ export class PlotterManager extends EventEmitter {
   home() {
     if (this.state === "plotting") throw new Error("Stop the plot first");
     if (!this.currentFile) throw new Error("No file to home from");
-    const filePath = path.join(this.uploadsDir, path.basename(this.currentFile));
-    return this.runOnce([filePath, "--config", this.configPath, "--mode", "utility", "--utility_cmd", "walk_home"]);
+    const filePath = path.join(
+      this.uploadsDir,
+      path.basename(this.currentFile)
+    );
+    return this.runOnce([
+      filePath,
+      "--config",
+      this.configPath,
+      "--mode",
+      "utility",
+      "--utility_cmd",
+      "walk_home",
+    ]);
   }
 
   pen(direction) {
@@ -310,7 +343,8 @@ export class PlotterManager extends EventEmitter {
   async estimate(filename, layer = null) {
     if (this.state === "plotting") throw new Error("Plot in progress");
     const filePath = path.join(this.uploadsDir, path.basename(filename));
-    if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filename}`);
+    if (!fs.existsSync(filePath))
+      throw new Error(`File not found: ${filename}`);
 
     const args = [
       filePath,
