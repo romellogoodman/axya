@@ -17,6 +17,7 @@ stats, output_svg (plotting modes only; the SVG with <plotdata>).
 """
 
 import contextlib
+import copy
 import io
 import json
 import os
@@ -51,7 +52,8 @@ def digest_json(digest):
         "layers": [{
             "name": layer.name, "item_id": layer.item_id, "props": plain(layer.props),
             "paths": [{"item_id": path.item_id, "stroke": path.stroke, "fill": path.fill,
-                       "fill_rule": path.fill_rule, "subpaths": path.subpaths}
+                       "fill_rule": path.fill_rule,
+                       "subpaths": copy.deepcopy(path.subpaths)}  # later stages edit in place
                       for path in layer.paths],
         } for layer in digest.layers],
     }

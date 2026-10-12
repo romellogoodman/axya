@@ -17,7 +17,9 @@ const RESUME_CASES = (name: string) =>
 // calls but no settings snapshot.
 const hasSettings = (name: string) => loadStages(name).params !== undefined;
 
-for (const name of stageNames().filter((n) => !RESUME_CASES(n) && hasSettings(n))) {
+for (const name of stageNames().filter(
+  (n) => !RESUME_CASES(n) && hasSettings(n)
+)) {
   test(`config matches oracle: ${name}`, () => {
     const { case: c } = loadGolden(name);
     const stages = loadStages(name);

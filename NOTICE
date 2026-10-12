@@ -20,6 +20,33 @@ server/driver/config.ts              nextdrawcore/nextdraw_conf.py,        GPL-2
 server/driver/models.ts              nextdrawcore/nextdraw_options/        GPL-2.0-or-later
                                      models.py
                                      (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/svg/simplepath.ts,     ink_extensions simplepath.py,         GPL-2.0-or-later
+  cubicsuperpath.ts, simplestyle.ts  cubicsuperpath.py, simplestyle.py
+                                     (c) 2005 Aaron Spike
+server/driver/svg/simpletransform.ts ink_extensions simpletransform.py     GPL-2.0-or-later
+                                     (c) 2006 Jean-Francois Barraud,
+                                     (c) 2010 Alvin Penner
+server/driver/svg/bezmisc.ts         ink_extensions bezmisc.py             GPL-2.0-or-later
+                                     (c) 2010 Nick Drobchenko,
+                                     (c) 2005 Aaron Spike
+server/driver/svg/plotUtils.ts       plotink/plot_utils.py (subset)        MIT
+server/driver/svg/digest.ts          nextdrawcore/digest_svg.py, parts     GPL-2.0-or-later
+                                     of nextdraw.py
+server/driver/digest/pathObjects.ts  nextdrawcore/path_objects.py          GPL-2.0-or-later
+server/driver/digest/boundsclip.ts   nextdrawcore/boundsclip.py            GPL-2.0-or-later
+server/driver/digest/prepare.ts      nextdrawcore/nextdraw.py              GPL-2.0-or-later
+                                     (prepare_document, randomize_optimize,
+                                     get_doc_props)
+server/driver/optimize/              nextdrawcore/plot_optimizations.py    GPL-2.0-or-later
+  optimizations.ts
+server/driver/optimize/rtree.ts      plotink/rtree.py (Michal Migurski)    MIT
+server/driver/optimize/              plotink/spatial_grid.py               MIT
+  spatialGrid.ts
+server/driver/optimize/mt19937.ts    CPython _randommodule.c / random.py   PSF-2.0; MT19937
+                                     (MT19937 by Makoto Matsumoto and      reference code
+                                     Takuji Nishimura)                     BSD-3-Clause
+  (nextdrawcore files above: (c) 2025-2026 Windell H. Oskay, Bantam Tools)
+
 server/driver/motion/planner.ts      nextdrawcore/motion.py                GPL-2.0-or-later
                                      (c) 2025 Windell H. Oskay, Bantam Tools
 server/driver/motion/planUtils.ts    nextdrawcore/plan_utils.py            GPL-2.0-or-later

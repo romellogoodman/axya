@@ -217,7 +217,12 @@ export class ResumeStatus {
     const inScope = svg.lookupPrefix(ND_NS);
     const prefix = inScope ?? "ns0";
     const node = doc.createElementNS(ND_NS, `${prefix}:plotdata`);
-    if (!inScope) node.setAttributeNS("http://www.w3.org/2000/xmlns/", `xmlns:${prefix}`, ND_NS);
+    if (!inScope)
+      node.setAttributeNS(
+        "http://www.w3.org/2000/xmlns/",
+        `xmlns:${prefix}`,
+        ND_NS
+      );
     if (this.new.application === "") this.new.application = "nextdraw";
     const n = this.new;
     node.setAttribute("application", n.application);
