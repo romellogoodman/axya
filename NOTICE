@@ -1,0 +1,19 @@
+axya
+Copyright (C) Romello Goodman and contributors. Licensed under the GNU Affero
+General Public License v3.0 (see LICENSE).
+
+The native plotter driver in server/driver/ is ported from Bantam Tools'
+NextDraw software 1.7.5, vendored for reference in
+docs/reference-apps/nextdraw-1.7.5/. Each ported file carries the upstream
+copyright and license notice of the file(s) it derives from. Files derived
+from GPL-2.0-or-later sources are distributed under AGPL-3.0 as permitted by
+the "or any later version" clause.
+
+Ported file                          Derived from                          License
+-----------------------------------  ------------------------------------  ------------------
+server/driver/motion/ebbCalc.ts      plotink/ebb_calc.py 1.1.0             MIT
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+
+Test-only code in test/sim/ models the EiBotBoard firmware v3.1.7
+(docs/reference-apps/ebb-firmware/source/, BSD-3-Clause, Schmalz Haus LLC)
+and is checked against its regression vectors (EggBot repository, GPL-3.0).
