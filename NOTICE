@@ -20,6 +20,19 @@ server/driver/config.ts              nextdrawcore/nextdraw_conf.py,        GPL-2
 server/driver/models.ts              nextdrawcore/nextdraw_options/        GPL-2.0-or-later
                                      models.py
                                      (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/motion/planner.ts      nextdrawcore/motion.py                GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/motion/planUtils.ts    nextdrawcore/plan_utils.py            GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/motion/cubicEqn.ts     nextdrawcore/cubic_eqn.py             see file header
+                                     (Shril Kumar & Devojoyti Halder,      (freeware credit,
+                                     modified by Windell H. Oskay)         reproduced verbatim)
+server/driver/motion/commands.ts     nextdrawcore/dripfeed.py (command     GPL-2.0-or-later
+                                     formatting), plotink/ebb3_motion.py   MIT
+server/driver/motion/plotUtils.ts    plotink/plot_utils.py (subset)        MIT
+server/driver/motion/index.ts,       nextdrawcore/serial_utils.py          GPL-2.0-or-later
+server/driver/motion/types.ts        (enable_motors speeds),
+                                     pen_handling.py (PenPosition)
 server/driver/ebb/ebb3.ts            plotink/ebb3_serial.py                MIT
                                      (c) 2026 Windell H. Oskay, Bantam Tools
 server/driver/ebb/motion.ts          plotink/ebb3_motion.py                MIT
