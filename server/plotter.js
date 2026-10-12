@@ -5,8 +5,8 @@
  *   drivers/native.js  axya's TypeScript port of the nextdraw driver
  *   drivers/cli.js     Bantam's `nextdraw` CLI as a subprocess (transitional)
  *
- * AXYA_DRIVER=native|cli selects one (default: cli until the native driver
- * is validated on hardware; see docs/DRIVER_PORT.md).
+ * AXYA_DRIVER=native|cli selects one (default: native; cli remains as a
+ * fallback until hardware bring-up is complete, see docs/DRIVER_PORT.md).
  */
 
 import { EventEmitter } from "node:events";
@@ -28,7 +28,7 @@ export class PlotterManager extends EventEmitter {
     this.configPath = configPath;
     this.uploadsDir = uploadsDir;
     this.driver =
-      driver ?? createDriver(process.env.AXYA_DRIVER || "cli", { configPath });
+      driver ?? createDriver(process.env.AXYA_DRIVER || "native", { configPath });
 
     this.state = "idle";
     this.currentFile = null;

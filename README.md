@@ -6,8 +6,8 @@ A local web interface for AxiDraw and Bantam NextDraw pen plotters.
 
 Axya runs a small Node server alongside a React frontend. The server drives your plotter in one of two ways:
 
-- **Native driver** (`AXYA_DRIVER=native`): a TypeScript port of Bantam's official nextdraw driver, talking to the plotter over USB directly. No Python needed, instant manual controls. It reproduces nextdraw 1.7.5's commands exactly in testing and is awaiting hardware validation.
-- **CLI driver** (default for now): shells out to Bantam's [`nextdraw` CLI](https://bantam.tools/nd_cli/).
+- **Native driver** (default): a TypeScript port of Bantam's official nextdraw driver, talking to the plotter over USB directly. No Python needed, instant manual controls. It reproduces nextdraw 1.7.5's commands exactly in testing; hardware validation is in progress ([checklist](docs/HARDWARE_BRINGUP.md)). Hidden-line removal is not yet supported.
+- **CLI driver** (`AXYA_DRIVER=cli`, fallback): shells out to Bantam's [`nextdraw` CLI](https://bantam.tools/nd_cli/).
 
 ## Features
 
@@ -27,9 +27,13 @@ Axya runs a small Node server alongside a React frontend. The server drives your
 
 ### 1. Node.js 20.19+ (or 22.12+)
 
-### 2. The `nextdraw` CLI (CLI driver only)
+### 2. EBB firmware 3.0.2 or newer
 
-Skip this if you run the native driver (`AXYA_DRIVER=native npm run dev`). Its one requirement: the plotter's EBB firmware must be 3.0.2 or newer, as with nextdraw itself.
+The native driver, like Bantam's nextdraw, needs the plotter's EiBotBoard firmware at 3.0.2 or newer. Axya shows the firmware version in the status panel once the plotter connects.
+
+### 3. The `nextdraw` CLI (optional, CLI driver only)
+
+Only needed for the fallback driver (`AXYA_DRIVER=cli npm run dev`).
 
 Axya delegates all plotter control to Bantam's CLI, installed as a Python module:
 

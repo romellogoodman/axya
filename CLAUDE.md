@@ -1,6 +1,6 @@
 # axya
 
-Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, Express backend. The backend drives the plotter through a driver chosen by `AXYA_DRIVER`: `native` (axya's TypeScript port of Bantam's nextdraw driver in `server/driver/`, talking USB serial directly) or `cli` (spawns the `nextdraw` Python CLI; default until the native driver is validated on hardware).
+Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, Express backend. The backend drives the plotter through a driver chosen by `AXYA_DRIVER`: `native`, the default (axya's TypeScript port of Bantam's nextdraw driver in `server/driver/`, talking USB serial directly), or `cli` (spawns the `nextdraw` Python CLI; a fallback until the native driver is validated on hardware).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, REST API, state machine, and pause/resume mechanics.
 

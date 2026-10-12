@@ -4,8 +4,8 @@
 
 | Driver | What it is | Status |
 |---|---|---|
-| `native` | axya's TypeScript port of Bantam's nextdraw driver (`server/driver/`), talking to the EiBotBoard (EBB) over USB serial directly | Matches nextdraw 1.7.5 command-for-command on every oracle case; awaiting hardware validation |
-| `cli` (default) | Spawns Bantam's [`nextdraw` CLI](https://bantam.tools/nd_cli/) for every action | Transitional; removed once `native` is validated on hardware |
+| `native` (default) | axya's TypeScript port of Bantam's nextdraw driver (`server/driver/`), talking to the EiBotBoard (EBB) over USB serial directly | Matches nextdraw 1.7.5 command-for-command on every oracle case; hardware validation in progress |
+| `cli` | Spawns Bantam's [`nextdraw` CLI](https://bantam.tools/nd_cli/) for every action | Fallback; removed once `native` is validated on hardware |
 
 See [DRIVER_PORT.md](DRIVER_PORT.md) for why and how the driver was ported, and [prior-art/](prior-art/README.md) for the research behind it.
 

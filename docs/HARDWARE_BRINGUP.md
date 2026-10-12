@@ -13,10 +13,10 @@ Keep a hand near the power switch for every step that moves.
 
 ```bash
 npm install
-AXYA_DRIVER=native AXYA_EBB_TRACE=/tmp/axya-ebb.log npm run dev
+AXYA_EBB_TRACE=/tmp/axya-ebb.log npm run dev
 ```
 
-- **`AXYA_DRIVER=native`** selects the native driver. The status panel shows `· native` after the plotter summary.
+- The native driver is the default. The status panel shows `· native` after the plotter summary.
 - **`AXYA_EBB_TRACE`** appends every line sent to and received from the board to that file. Keep it for any step that misbehaves.
 - **Comparing with the CLI driver.** Restart with `AXYA_DRIVER=cli`, which needs `python3 -m nextdraw`. Run the same step and compare the behavior, and the CLI's log panel output.
 
@@ -96,4 +96,4 @@ Send the step number, the model, the trace file (`/tmp/axya-ebb.log`), and the l
 
 ## After bring-up
 
-Once each model passes, `native` becomes the default driver, the CLI driver and its Python requirement are removed, and DRIVER_PORT.md records the result.
+Once each model passes, the CLI driver and its Python requirement are removed, and DRIVER_PORT.md records the result.

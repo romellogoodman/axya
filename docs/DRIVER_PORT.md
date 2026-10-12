@@ -52,7 +52,7 @@ The driver logic is open source:
    - `CliDriver`: the current behavior.
    - `NativeDriver`: the port.
 
-   An env var or config selects between them. The CLI backend is deleted after hardware validation.
+   `AXYA_DRIVER` selects between them. Native became the default on 2026-10-12, at the user's request, ahead of hardware validation; the CLI backend stays as a fallback and is deleted after validation.
 
 ## Verification strategy
 
