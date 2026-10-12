@@ -14,6 +14,7 @@
  */
 
 import { applyModelAndHandling } from "./models.ts";
+import { formatFloat } from "./pyfmt.ts";
 
 /** Values that, when non-null, replace model/handling/motor-derived params. */
 export interface Overrides {
@@ -273,17 +274,12 @@ export function defaultParams(): Params {
   };
 }
 
-/** Python's str() of a float: "1.0", "0.5", "25.4". */
-function pyFloatStr(n: number): string {
-  return Number.isInteger(n) ? n.toFixed(1) : String(n);
-}
-
 /** Option defaults seeded from params, as common_options.py does. */
 export function defaultOptions(params: Params): Options {
   return {
     mode: params.mode,
     utility_cmd: params.utility_cmd,
-    dist: pyFloatStr(params.dist),
+    dist: formatFloat(params.dist), // Python str(float)
     offset_start: params.offset_start,
     layer: params.default_layer,
     layer_option: 1,
