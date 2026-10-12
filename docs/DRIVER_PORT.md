@@ -102,7 +102,7 @@ test/
 |---|---|---|
 | 0 | Oracle harness, fixture corpus, TS toolchain | **Done.** 52 deterministic golden cases ([test/oracle](../test/oracle/README.md)) |
 | 1 | `ebbCalc` + EBB ISR simulator | **Done.** `ebbCalc` matches Python on 33,540 vectors; simulator matches the firmware's hardware regression vectors and agrees with `ebbCalc` on every golden T3/TD |
-| 2 | Config, models, handling | Option resolution matches nextdraw for every fixture |
+| 2 | Config, models, handling | **Done.** Options, params and bounds match the oracle for all 36 plotting cases |
 | 3 | SVG digest + layer codes + boundsclip | Digest matches the oracle's plob for every fixture |
 | 4 | Optimizations (join, supersample, random start, reorder) | Path order and geometry match the oracle |
 | 5 | S-curve planner + command generation | Motion commands match the oracle exactly |

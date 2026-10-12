@@ -13,6 +13,13 @@ Ported file                          Derived from                          Licen
 -----------------------------------  ------------------------------------  ------------------
 server/driver/motion/ebbCalc.ts      plotink/ebb_calc.py 1.1.0             MIT
                                      (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/config.ts              nextdrawcore/nextdraw_conf.py,        GPL-2.0-or-later
+                                     nextdraw_options/common_options.py,
+                                     nextdraw.py (update_options)
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/models.ts              nextdrawcore/nextdraw_options/        GPL-2.0-or-later
+                                     models.py
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
 
 Test-only code in test/sim/ models the EiBotBoard firmware v3.1.7
 (docs/reference-apps/ebb-firmware/source/, BSD-3-Clause, Schmalz Haus LLC)
