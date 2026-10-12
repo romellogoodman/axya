@@ -36,6 +36,7 @@ export const initialState = {
     error: null,
     canHome: false,
     driver: null, // "native" or "cli"
+    machine: null, // { firmware, nickname } (native driver)
     logVersion: 0,
     connected: null, // null=unknown, true=connected, false=no device
   },

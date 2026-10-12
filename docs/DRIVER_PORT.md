@@ -110,7 +110,7 @@ test/
 | 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | **Done.** `test/run.e2e.test.ts`: every oracle case (56; hidden-line removal pending) reproduces nextdraw's full command stream with timing, messages, status code, final steps/RAM, stats and output SVG byte for byte |
 | 8 | `Driver` interface over the CLI backend; `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | **Done.** `AXYA_DRIVER=native|cli`; `test/server.native.test.ts` drives plot/pause/resume/stop/pen/estimate end to end against the fake EBB, and the plot stream equals the oracle's |
 | 9 | Hidden-line removal, Snap Colors, Hatch | Matches oracle output |
-| 10 | **Hardware bring-up** (with the user's machines) | See below |
+| 10 | **Hardware bring-up** (AxiDraw V3, NextDraw 2234) | Checklist: [HARDWARE_BRINGUP.md](HARDWARE_BRINGUP.md). Aids: firmware/nickname shown in the UI; `AXYA_EBB_TRACE=<file>` serial trace |
 
 ### Hardware bring-up
 

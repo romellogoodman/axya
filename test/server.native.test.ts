@@ -58,6 +58,10 @@ test("plot reproduces nextdraw's command stream and reports completion", async (
   assert.equal(plotter.state, "idle");
   assert.equal(plotter.progress, 100);
   assert.equal(plotter.connected, true);
+  assert.deepEqual(plotter.status().machine, {
+    firmware: "3.1.7",
+    nickname: null,
+  });
   const want = loadGolden("plot-basic").commands.map(([, l]) => l);
   assert.deepEqual(
     fake.log.map(([, l]) => l),

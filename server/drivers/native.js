@@ -13,6 +13,7 @@ import { formatFixed } from "../driver/pyfmt.ts";
 import { NextDraw } from "../driver/run/nextdraw.ts";
 import { formatHms } from "../driver/run/status.ts";
 import { stripPlotDataFile } from "../plotdata.js";
+import { tracingProvider } from "./trace.js";
 
 const OPTION_KEYS = new Set(Object.keys(defaultOptions(defaultParams())));
 
@@ -29,7 +30,9 @@ export class NativeDriver {
 
   constructor({ configPath, ports = serialPortProvider, clock }) {
     this.configPath = configPath;
-    this.ports = ports;
+    this.ports = process.env.AXYA_EBB_TRACE
+      ? tracingProvider(ports, process.env.AXYA_EBB_TRACE)
+      : ports;
     this.clock = clock; // undefined: real time
     this.pauseFlag = false;
     this.stopFlag = false;
@@ -67,6 +70,12 @@ export class NativeDriver {
     });
     try {
       const result = await nd.run();
+      if (nd.machine.version) {
+        hooks.machine?.({
+          firmware: nd.machine.version,
+          nickname: nd.machine.name || null,
+        });
+      }
       return { nd, result, text: messages.join("\n") };
     } finally {
       if (nd.machine.port !== null) await nd.machine.disconnect();

@@ -39,11 +39,16 @@ export class PlotterManager extends EventEmitter {
     this.canHome = false;
     this.connected = null; // null=unknown, true=connected, false=no device
     this.busy = false; // a manual command is running
+    this.machine = null; // { firmware, nickname } from the last native session
 
     this.logs = [];
     this.logVersion = 0;
     this.hooks = {
       log: (line, level) => this.log(line, level),
+      machine: (info) => {
+        this.machine = info;
+        this.emit("change");
+      },
       progress: (pct) => {
         if (pct !== this.progress) {
           this.progress = pct;
@@ -66,6 +71,7 @@ export class PlotterManager extends EventEmitter {
       canHome: this.canHome,
       logVersion: this.logVersion,
       connected: this.connected,
+      machine: this.machine,
     };
   }
 

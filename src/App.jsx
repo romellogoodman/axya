@@ -274,6 +274,15 @@ function App() {
               </div>
             )}
             {config && <div className="summary-pill">{summaryPill}</div>}
+            {status.machine && (
+              <div
+                className="summary-pill"
+                title="EiBotBoard firmware reported by the plotter"
+              >
+                {status.machine.nickname ? `${status.machine.nickname} · ` : ""}
+                {`EBB firmware ${status.machine.firmware}`}
+              </div>
+            )}
             <button
               className="button button--secondary"
               onClick={() => dispatch({ type: "TOGGLE_CONFIG", show: true })}
