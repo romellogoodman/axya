@@ -1,0 +1,62 @@
+{
+ "commands": [],
+ "messages": [
+  "Previews and NextDraw software data have been removed from the SVG file."
+ ],
+ "status_code": 0,
+ "final_steps": [
+  0,
+  0
+ ],
+ "final_ram": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "case": {
+  "options": {
+   "model": 8,
+   "mode": "utility",
+   "utility_cmd": "strip_data"
+  },
+  "params": {
+   "check_updates": false
+  },
+  "fake": {
+   "homed": true,
+   "motors_on": true
+  },
+  "svg": {
+   "from": "pause-button"
+  }
+ }
+}

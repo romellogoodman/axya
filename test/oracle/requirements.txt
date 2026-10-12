@@ -1,0 +1,7 @@
+lxml==5.3.0
+ink-extensions==2.2.0
+pyserial==3.5
+packaging
+requests
+tqdm==4.64.0
+pyclipper

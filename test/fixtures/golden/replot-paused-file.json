@@ -1,0 +1,96 @@
+{
+ "commands": [
+  [
+   0.0,
+   "v"
+  ],
+  [
+   0.0,
+   "CU,10,1"
+  ],
+  [
+   0.0,
+   "QT"
+  ],
+  [
+   0.0,
+   "CU,3,1"
+  ],
+  [
+   0.0,
+   "CU,4,16"
+  ],
+  [
+   0.0,
+   "CU,50,0"
+  ]
+ ],
+ "messages": [
+  "This document looks like it was paused while plotting.",
+  "To resume a plot, use the res_plot mode.",
+  "Or, to start from the beginning of the file, ",
+  " (1) Plot the output SVG from this command or ",
+  " (2) use the strip_data utility command."
+ ],
+ "status_code": 0,
+ "final_steps": [
+  0,
+  0
+ ],
+ "final_ram": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "stats": {
+  "time_estimate": 0,
+  "distance_pendown": 0.0,
+  "distance_total": 0.0,
+  "pen_lifts": 0
+ },
+ "output_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"8in\" height=\"6in\" viewBox=\"0 0 800 600\">\n  <defs><path id=\"tri\" d=\"M0,0 L40,0 L20,30 Z\"/></defs>\n  <rect x=\"20\" y=\"20\" width=\"160\" height=\"100\" rx=\"15\" fill=\"none\" stroke=\"#000\"/>\n  <ellipse cx=\"300\" cy=\"80\" rx=\"80\" ry=\"40\" fill=\"none\" stroke=\"#000\"/>\n  <line x1=\"420\" y1=\"20\" x2=\"560\" y2=\"140\" stroke=\"#000\"/>\n  <polyline points=\"600,20 640,120 680,20 720,120\" fill=\"none\" stroke=\"#000\"/>\n  <polygon points=\"40,200 120,180 160,260 60,280\" fill=\"none\" stroke=\"#000\"/>\n  <path d=\"M200,200 C240,140 320,260 360,200 S440,140 480,200 Q520,260 560,200 T640,200\" fill=\"none\" stroke=\"#000\"/>\n  <path d=\"m680,180 a60,40 30 1,0 80,60 h-30 v20 z\" fill=\"none\" stroke=\"#000\"/>\n  <g transform=\"translate(100,350) rotate(15) scale(1.5,0.8)\">\n    <circle cx=\"0\" cy=\"0\" r=\"50\" fill=\"none\" stroke=\"#000\"/>\n    <g transform=\"matrix(0.9,0.2,-0.2,0.9,120,0)\"><rect width=\"60\" height=\"60\" fill=\"none\" stroke=\"#000\"/></g>\n  </g>\n  <g transform=\"skewX(20)\"><path d=\"M300,350 L400,350 L400,450\" fill=\"none\" stroke=\"#000\"/></g>\n  <use xlink:href=\"#tri\" x=\"500\" y=\"400\" stroke=\"#000\" fill=\"none\"/>\n  <use xlink:href=\"#tri\" transform=\"rotate(45 650 450)\" x=\"650\" y=\"450\" stroke=\"#000\" fill=\"none\"/>\n  <rect x=\"20\" y=\"500\" width=\"50\" height=\"50\" style=\"display:none\" stroke=\"#000\"/>\n  <g style=\"visibility:hidden\"><rect x=\"100\" y=\"500\" width=\"50\" height=\"50\" stroke=\"#000\" fill=\"none\"/><rect x=\"180\" y=\"500\" width=\"50\" height=\"50\" style=\"visibility:visible\" stroke=\"#000\" fill=\"none\"/></g>\n  <circle cx=\"400\" cy=\"520\" r=\"0\" stroke=\"#000\"/>\n<ns0:plotdata xmlns:ns0=\"https://bantam.tools/nd\" application=\"nextdraw\" auto_rot=\"1\" handling=\"1\" hiding=\"0\" layer=\"-1\" model=\"8\" optim=\"0\" pause_dist=\"230498\" pause_ref=\"230498\" pause_warn=\"0\" plob_version=\"n/a\" rand_seed=\"1\" rand_start=\"0\"/></svg>",
+ "case": {
+  "options": {
+   "model": 8
+  },
+  "params": {
+   "check_updates": false
+  },
+  "fake": {
+   "homed": true,
+   "motors_on": true
+  },
+  "svg": {
+   "from": "pause-button"
+  }
+ }
+}

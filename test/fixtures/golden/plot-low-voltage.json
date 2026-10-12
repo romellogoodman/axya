@@ -1,0 +1,116 @@
+{
+ "commands": [
+  [
+   0.0,
+   "v"
+  ],
+  [
+   0.0,
+   "CU,10,1"
+  ],
+  [
+   0.0,
+   "QT"
+  ],
+  [
+   0.0,
+   "CU,3,1"
+  ],
+  [
+   0.0,
+   "CU,4,16"
+  ],
+  [
+   0.0,
+   "CU,50,0"
+  ],
+  [
+   0.0,
+   "QG"
+  ],
+  [
+   0.0,
+   "QC"
+  ],
+  [
+   0.0,
+   "SL,0,12"
+  ],
+  [
+   0.0,
+   "SL,0,13"
+  ],
+  [
+   0.0,
+   "CS"
+  ],
+  [
+   0.0,
+   "QG"
+  ]
+ ],
+ "messages": [
+  "Note (voltage): Low voltage detected.",
+  "Check that power supply is plugged in and machine is powered on."
+ ],
+ "status_code": 0,
+ "final_steps": [
+  0,
+  0
+ ],
+ "final_ram": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "stats": {
+  "time_estimate": 0.0,
+  "distance_pendown": 0.0,
+  "distance_total": 0.0,
+  "pen_lifts": 0
+ },
+ "output_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100mm\" height=\"100mm\" viewBox=\"0 0 100 100\"><rect x=\"10\" y=\"10\" width=\"50\" height=\"50\" fill=\"none\" stroke=\"black\"/><circle cx=\"70\" cy=\"70\" r=\"15\" fill=\"none\" stroke=\"black\"/><ns0:plotdata xmlns:ns0=\"https://bantam.tools/nd\" application=\"nextdraw\" auto_rot=\"0\" handling=\"0\" hiding=\"0\" layer=\"-1\" model=\"8\" optim=\"0\" pause_dist=\"-25400\" pause_ref=\"-25400\" pause_warn=\"0\" plob_version=\"n/a\" rand_seed=\"1\" rand_start=\"0\"/></svg>",
+ "case": {
+  "options": {
+   "model": 8
+  },
+  "params": {
+   "check_updates": false
+  },
+  "fake": {
+   "homed": true,
+   "motors_on": true,
+   "voltage": 100
+  },
+  "svg": "test/fixtures/svg/square-circle.svg"
+ }
+}

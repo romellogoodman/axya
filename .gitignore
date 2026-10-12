@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Oracle (Python nextdraw) virtualenv, dev only
+.venv-oracle
+__pycache__/

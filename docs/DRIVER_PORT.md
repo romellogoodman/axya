@@ -100,7 +100,7 @@ test/
 
 | # | Phase | Exit criterion |
 |---|---|---|
-| 0 | Oracle harness, fixture corpus, TS toolchain, `Driver` interface around the existing CLI backend | Fixtures generated; lint, typecheck and tests pass; app unchanged |
+| 0 | Oracle harness, fixture corpus, TS toolchain | **Done.** 52 deterministic golden cases ([test/oracle](../test/oracle/README.md)) |
 | 1 | `ebbCalc` + EBB ISR simulator | Matches firmware regression vectors and oracle accumulator traces |
 | 2 | Config, models, handling | Option resolution matches nextdraw for every fixture |
 | 3 | SVG digest + layer codes + boundsclip | Digest matches the oracle's plob for every fixture |
@@ -108,7 +108,7 @@ test/
 | 5 | S-curve planner + command generation | Motion commands match the oracle exactly |
 | 6 | Transport, commands, pen, status, homing (against the fake EBB) | Full setup and teardown streams match the oracle |
 | 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | Full plot, pause, and resume streams match; preview times match |
-| 8 | `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | App works end-to-end against the fake EBB |
+| 8 | `Driver` interface over the CLI backend; `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | App works end-to-end against the fake EBB |
 | 9 | Hidden-line removal, Snap Colors, Hatch | Matches oracle output |
 | 10 | **Hardware bring-up** (with the user's machines) | See below |
 

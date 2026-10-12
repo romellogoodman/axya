@@ -1,0 +1,62 @@
+{
+ "commands": [],
+ "messages": [
+  "Plot was paused after 230.498 mm (9.075 inches) of pen-down travel."
+ ],
+ "status_code": 0,
+ "final_steps": [
+  0,
+  0
+ ],
+ "final_ram": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "case": {
+  "options": {
+   "model": 8,
+   "mode": "utility",
+   "utility_cmd": "res_read"
+  },
+  "params": {
+   "check_updates": false
+  },
+  "fake": {
+   "homed": true,
+   "motors_on": true
+  },
+  "svg": {
+   "from": "pause-button"
+  }
+ }
+}

@@ -10,8 +10,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.js\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.js\"",
+    "typecheck": "tsc",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "oracle:setup": "python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r test/oracle/requirements.txt",
+    "oracle": ".venv-oracle/bin/python -I test/oracle/generate.py",
+    "format": "prettier --write \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.{js,ts}\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,scss,css}\" \"server/**/*.{js,ts}\" \"test/**/*.ts\"",
     "preview": "vite preview",
     "clean": "rm -rf dist node_modules package-lock.json"
   },
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
@@ -33,6 +38,11 @@
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
     "sass": "^1.105.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
     "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=22.18"
   }
 }
