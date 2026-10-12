@@ -16,7 +16,8 @@ import type { Request, Response } from "express";
 import express from "express";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
-import { EBB, type Hardware } from "./ebb.js";
+import { createMockSerialPort } from "./__tests__/mocks/serialport.js";
+import { EBB, type EBBPort, type Hardware } from "./ebb.js";
 import { type Motion, PenMotion, Plan } from "./planning.js";
 import { SerialPortSerialPort } from "./serialport-serialport.js";
 import * as _self from "./server.js"; // use self-import for test mocking
@@ -48,10 +49,9 @@ const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
 export async function startServer(
   port: number,
   hardware: Hardware = "v3",
-  com: Com = null,
+  com: Com = "",
   enableCors = false,
   maxPayloadSize = "200mb",
-  svgIoApiKey = "",
 ) {
   const app = express();
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -64,7 +64,7 @@ export async function startServer(
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
-  let ebb: EBB | null;
+  let ebb: EBB | null = null;
   let clients: WebSocket[] = [];
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
@@ -75,26 +75,21 @@ export async function startServer(
 
   wss.on("connection", (ws) => {
     clients.push(ws);
-    ws.on("message", (message) => {
+    ws.on("message", async (message) => {
       const msg = JSON.parse(message.toString());
       switch (msg.c) {
         case "ping":
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) {
-            ebb.disableMotors();
-          }
+          await ebb?.disableMotors();
           break;
         case "setPenHeight":
-          if (ebb) {
-            (async () => {
-              if (await ebb.supportsSR()) {
-                await ebb.setServoPowerTimeout(10000, true);
-              }
-              await ebb.setPenHeight(msg.p.height, msg.p.rate);
-            })();
+          if (!ebb) break;
+          if (ebb.supportsSR()) {
+            await ebb.setServoPowerTimeout(10000, true);
           }
+          await ebb.setPenHeight(msg.p.height, msg.p.rate);
           break;
         case "changeHardware":
           ebb?.changeHardware(msg.p.hardware);
@@ -106,14 +101,12 @@ export async function startServer(
     // send starting params to clients
     ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
 
-    ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
-
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
-    if (motionIdx != null) {
+    if (motionIdx !== null) {
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
-    if (currentPlan != null) {
-      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan } }));
+    if (currentPlan !== null) {
+      ws.send(JSON.stringify({ c: "plan", p: { motions: currentPlan.toTransferable() } }));
     }
 
     ws.on("close", () => {
@@ -135,9 +128,9 @@ export async function startServer(
     const { signal } = controller;
     try {
       const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
+      currentPlan = plan;
       console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
+      console.log(ebb !== null ? "Beginning plot..." : "Simulating plot...");
       res.status(200).end();
 
       const begin = Date.now();
@@ -156,7 +149,8 @@ export async function startServer(
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
       try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
+        const plotEbb = ebb ?? (await EBB.create(createMockSerialPort() as unknown as EBBPort));
+        await doPlot(createPlotter(plotEbb), plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
       } finally {
@@ -181,7 +175,7 @@ export async function startServer(
     }
     ebb?.cancel();
     if (unpaused) {
-      signalUnpause();
+      signalUnpause?.();
       broadcast({ c: "pause", p: { paused: false } });
     }
     unpaused = signalUnpause = null;
@@ -206,32 +200,6 @@ export async function startServer(
     res.status(200).end();
   });
 
-  app.post("/generate", async (req: Request, res: Response) => {
-    if (plotting) {
-      console.log("Received generate request, but a plot is already in progress!");
-      res.status(400).end("Plot in progress");
-      return;
-    }
-    const { prompt, vecType } = req.body;
-    try {
-      // call the api and return the svg
-      const apiResp = await fetch("https://api.svg.io/v1/generate-image", {
-        method: "post",
-        headers: {
-          Authorization: `Bearer ${svgIoApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt, style: vecType, negativePrompt: "" }),
-      });
-      // forward the api response
-      const data = await apiResp.json();
-      res.status(apiResp.status).send(data).end();
-    } catch (err) {
-      console.error(err);
-      res.status(500).end();
-    }
-  });
-
   function broadcast(msg: Record<string, unknown>) {
     for (const client of clients) {
       try {
@@ -249,37 +217,27 @@ export async function startServer(
     postPlot: () => Promise<void>;
   }
 
-  const realPlotter: Plotter = {
-    async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
-    },
-    async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
-    },
-    async postCancel(initialPenHeight: number): Promise<void> {
-      await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
-    },
-    async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
-    },
-  };
-
-  const simPlotter: Plotter = {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async prePlot(_initialPenHeight: number): Promise<void> {},
-    async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
-      console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
-      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
-    },
-    async postCancel(_initialPenHeight: number): Promise<void> {
-      console.log("Plot cancelled");
-    },
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async postPlot(): Promise<void> {},
-  };
+  function createPlotter(ebb: EBB): Plotter {
+    return {
+      async prePlot(initialPenHeight: number): Promise<void> {
+        await ebb.configureFifoDepth();
+        await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
+        await ebb.setPenHeight(initialPenHeight, 1000, 1000);
+      },
+      async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
+        await ebb.executeMotion(motion);
+      },
+      async postCancel(initialPenHeight: number): Promise<void> {
+        await ebb.setPenHeight(initialPenHeight, 1000);
+        await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
+        await ebb.waitUntilMotorsIdle();
+      },
+      async postPlot(): Promise<void> {
+        await ebb.waitUntilMotorsIdle();
+        await ebb.disableMotors();
+      },
+    };
+  }
 
   async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
     const abortPromise = onceAbort(signal); // reuse abort promise
@@ -352,6 +310,9 @@ export async function startServer(
 async function tryOpen(com: Com) {
   const port = new SerialPortSerialPort(com);
   await port.open({ baudRate: 9600 });
+  if (!port.readable || !port.writable) {
+    throw new Error("Serial port opened but readable/writable streams are unavailable");
+  }
   return port;
 }
 
@@ -390,29 +351,32 @@ async function* ebbs(path?: string, hardware: Hardware = "v3") {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
-      const closed = new Promise((resolve) => {
-        port.addEventListener("disconnect", resolve, { once: true });
-      });
-      yield new EBB(port, hardware);
-      await closed;
-      yield null;
-      console.error("Lost connection to EBB, reconnecting...");
+      try {
+        const closed = new Promise((resolve) => {
+          port.addEventListener("disconnect", resolve, { once: true });
+        });
+        yield await EBB.create(port, hardware);
+        await closed;
+        yield null;
+        console.error("Lost connection to EBB, reconnecting...");
+      } finally {
+        if (port.connected) {
+          await port.close();
+        }
+      }
     } catch (e) {
-      console.error(`Error connecting to EBB: ${e.message}`);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error(`Error connecting to EBB: ${err.message}`);
       console.error("Retrying in 5 seconds...");
       await sleep(5000);
     }
   }
 }
 
-export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
-  let dev = device;
-  if (!device) {
-    const ebbs = await listEBBs();
-    if (ebbs.length === 0) return null;
-    dev = ebbs[0];
-  }
+export async function connectEBB(hardware: Hardware, device?: string): Promise<EBB | null> {
+  const dev = device ?? (await listEBBs())[0];
+  if (!dev) return null;
 
   const port = await tryOpen(dev);
-  return new EBB(port, hardware);
+  return await EBB.create(port, hardware);
 }

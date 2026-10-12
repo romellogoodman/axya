@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+<name>NextDraw Plot Digest (Plob) Export</name>
+<id>command.bantamtools.nextdraw-plob</id>
+<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
+<dependency type="executable" location="extensions">nextdraw_control.py</dependency>
+<image>nextdraw_deps/nextdrawcore/inx_img/nextdraw_plob_header.svg</image>
+
+<param name="digest" type="int" gui-hidden="true">2</param>
+
+<param name="submode" type="notebook">
+<page name="Plot Digest Settings" gui-text="Plot Digest Options">
+
+<hbox >
+<image width="50" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="model" type="optiongroup" appearance="combo" indent="1" gui-text="Model:">
+<option value="0">- Select -</option>
+<option value="8">Bantam Tools NextDraw™ 8511</option>
+<option value="9">Bantam Tools NextDraw™ 1117</option>
+<option value="10">Bantam Tools NextDraw™ 2234</option>
+<option value="1">AxiDraw V2, V3, or SE/A4</option>
+<option value="2">AxiDraw V3/A3 or SE/A3</option>
+<option value="6">AxiDraw SE/A2</option>
+<option value="5">AxiDraw SE/A1</option>
+<option value="7">AxiDraw V3/B6</option>
+<option value="4">AxiDraw MiniKit</option>
+<option value="3">AxiDraw V3 XLX</option>
+</param>
+
+
+<param indent="1" name="mode" type="optiongroup" appearance="combo" gui-text="Layer handling:">
+<option value="plot">Include all layers</option>
+<option value="layers">Only specific layer(s)...</option>
+</param>
+<param indent="5" name="layer" type="int" min="0" max="1000"
+gui-text="Specific layer selection:">1</param>
+
+<spacer />
+
+<param indent="1" name="reordering" type="optiongroup" appearance="combo" gui-text="Plot optimization:">
+<option value="0">Least; Only connect adjoining paths</option>
+<option value="1">Basic; Also reorder paths for speed</option>
+<option value="2">Full; Also allow path reversal</option>
+<option value="4">None; Strictly preserve file order</option>
+</param>
+
+<param indent="3" name="auto_rotate" type="bool" gui-text="Auto-rotate page when printing"
+gui-description="Pages taller than wide will be rotated 90 degrees counter-clockwise when printed."
+>true</param>	
+<param indent="3" name="random_start" type="bool" gui-text="Randomize starts of closed paths">false</param>
+<param indent="3" name="hiding" type="bool" gui-text="Hidden-line removal"
+gui-description="Tip: Hidden-line removal can be slow. It also ignores path orientation, so full optimization is recommended."
+>false</param>
+
+
+</vbox>
+</hbox>
+
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<image>nextdraw_deps/nextdrawcore/inx_img/nd_hr.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<label indent="6">Version 1.7.5      —      Copyright 2026 Bantam Tools</label>
+
+</page>
+
+<page name="help" gui-text="About">
+<label indent="1">
+The Plot Digest Object or "Plob" format is a limited subset of SVG,
+stripped of style information and prepared plotting.
+</label>
+<label indent="1">
+Generating the Plob is destructive. Always save as a separate
+copy and keep your original, editable document intact.
+</label>
+<spacer />
+<label indent="1">
+The NextDraw software pre-processes documents into Plob format as part
+of the printing process. This process strips out layers and objects
+that won't be printed as well as all styles. It reduces the document
+to a simplified plot-ready format, clipping to the plot area, and
+applying any optimizations.
+</label>
+<label indent="1">
+A Plob document prepared for a specific model of supported plotter,
+if not further edited, can be printed on that same plotter model,
+by the same Bantam Tools NextDraw software version, without further
+processing. This can potentially save a large amount of time when
+repeatedly starting or resuming a plot.
+</label>
+
+<spacer />
+
+<label indent="1">
+Exporting a Plob may be helpful in certain situations, for example when
+working with extremely large files, in order to
+separate the processing and motion-control stages of plotting.
+</label>
+</page>
+
+</param>
+
+<output>
+        <extension>.svg</extension>
+        <mimetype>image/svg+xml</mimetype>
+        <filetypename>NextDraw "Plob" Plot Digest (*.svg)</filetypename>
+        <filetypetooltip>Plob file for NextDraw</filetypetooltip>
+        <savecopyonly>true</savecopyonly>
+</output>
+
+<script>
+<command location="extensions" interpreter="python">nextdraw_control.py</command>
+</script>
+
+</inkscape-extension>
+

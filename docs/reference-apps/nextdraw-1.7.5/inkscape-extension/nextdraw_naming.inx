@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+<name>NextDraw Naming</name>
+<id>command.bantamtools.nextdraw_naming</id>
+<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
+<dependency type="executable" location="extensions">nextdraw_naming.py</dependency>
+
+
+
+<param name="mode" type="notebook" >
+<page name="list_names" gui-text="Read NextDraw Name">
+
+<label appearance="header">
+Read NextDraw Nickname
+</label>
+
+<label indent="2"  xml:space="preserve">
+Click "Apply" to read and list all NextDraw units found via
+USB. Each is listed by assigned USB Nickname (if any) or by
+USB port enumeration.
+</label>
+
+</page>
+
+
+<page name="write_name" gui-text="Write NextDraw Name">
+
+<label appearance="header">
+Write NextDraw Nickname
+</label>
+
+<param indent="1" name="nickname" type="string" max_length="16" gui-text="Nickname:">East</param>
+
+<label indent="2" xml:space="preserve">
+Click "Apply" to assign the USB Nickname above to the
+machine connected via USB. After the name change, the machine
+will reboot to its power-on state. (If more than machine is
+connected, only the first one found will be named.)
+
+Names must be 3-16 characters long.
+
+USB Nicknames are semi-permanent; they can be changed
+by this utility and may be erased by firmware updates.
+
+USB Nicknames may not be visible until after resetting the
+machine manually and/or disconnecting it from USB.
+</label>
+
+</page>
+
+
+
+<page name="about" gui-text="About">
+
+<label indent="2" xml:space="preserve">
+This extension allows you to assign a "USB Nickname" (a digital
+name tag) to a given NextDraw, or to read out that name. 
+
+USB Nicknames are not required, but can be helpful if you have
+more than one NextDraw connected: You can specify which
+NextDraw to plot to when using NextDraw Control.
+
+Please be aware that updating your firmware may remove any
+existing USB Nickname; resetting the configuration to default.
+</label>
+
+
+</page>
+
+</param>
+
+
+<effect needs-live-preview="false">
+<object-type>all</object-type>
+<effects-menu>
+    <submenu name="Bantam Tools Utilities"/>
+</effects-menu>
+</effect>
+
+<script>
+<command location="extensions" interpreter="python">nextdraw_naming.py</command>
+</script>
+
+</inkscape-extension>

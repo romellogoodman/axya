@@ -1,0 +1,11 @@
+nextdrawcore @ git+ssh://git@github.com/bantamtools/nextdraw-core.git@${NEXTDRAW_CORE_BRANCH}
+certifi==2023.7.22
+charset-normalizer==3.2.0
+idna==3.3
+ink-extensions==2.2.0
+lxml==5.3.0
+plotink==1.14.3
+pyserial==3.5
+requests==2.32.3
+tqdm==4.64.0
+urllib3==1.26.18

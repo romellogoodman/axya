@@ -4,6 +4,8 @@ Local web UI for AxiDraw / Bantam NextDraw pen plotters. React + Vite frontend, 
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, REST API, state machine, and pause/resume mechanics.
 
+A native Node port of the driver is in progress: plan and decisions in [docs/DRIVER_PORT.md](docs/DRIVER_PORT.md), research on nextdraw, the EBB protocol, saxi and other prior art in [docs/prior-art/](docs/prior-art/README.md). Vendored reference sources live in `docs/reference-apps/` (read-only, lint-ignored).
+
 ## Working in this repo
 
 | Command | Does |

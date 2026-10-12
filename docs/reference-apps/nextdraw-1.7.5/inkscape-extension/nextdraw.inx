@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+<name>Bantam Tools NextDraw™</name>
+<id>command.bantamtools.nextdraw-manager</id>
+<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
+<dependency type="executable" location="extensions">nextdraw_control.py</dependency>
+<image>nextdraw_deps/nextdrawcore/inx_img/nextdraw_logo.svg</image>
+
+<param name="mode" type="notebook">
+
+<page name="plot" gui-text="Plot">
+
+<image>nextdraw_deps/nextdrawcore/inx_img/plot_tab.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<hbox >
+<image width="50" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+
+<label appearance="header">Press "Apply", with this tab selected, to plot the document.</label>
+<spacer />
+
+<label>For technical support, please visit support.bantamtools.com
+    or email support@bantamtools.com </label>
+</vbox>
+</hbox>
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<image>nextdraw_deps/nextdrawcore/inx_img/nd_hr.svg</image>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<hbox >
+<image width="100" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<vbox >
+
+<param name="layer_option" type="optiongroup" appearance="combo" gui-text="Content selection:"
+gui-description='Select whether to print the entire document when you press Apply, or just
+selected layers.'
+>
+<option value="1">Plot entire document</option>
+<option value="2">Plot selected layers</option>
+</param>
+
+<param name="layer" type="int" min="0" max="1000"
+gui-text="Layer number (if plotting by layer):"
+gui-description='You can choose to plot only specific layers,
+for example to plot only a single color of ink.
+&#10;When selected,
+only visible layers with names beginning with the selected number
+will print.
+&#10;&#10;For example, a layer named "5-red" will be plotted if the
+number 5 is selected, but layers named "guide lines", "55",
+or "2-black" will be skipped. Numbers may be in the range 0 to 1000'
+>1</param>
+
+</vbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<image>nextdraw_deps/nextdrawcore/inx_img/nd_hr.svg</image>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<hbox indent="6"><label>Get the documentation:</label>
+<label appearance="url">https://bantam.tools/nddocs</label></hbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<label indent="6"
+>Version 1.7.5     —      Copyright 2026 Bantam Tools</label>
+</page>
+
+
+<page name="res_plot" gui-text="Resume">
+
+<image>nextdraw_deps/nextdrawcore/inx_img/resume.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<hbox >
+<image width="30" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+
+<label appearance="header">Press "Apply", with this tab selected, to resume plotting a document that was paused.</label>
+<spacer />
+<label> 
+To pause a plot in progress, press the pause button on the
+left side of the NextDraw. After pausing, you can change
+settings or perform any manual adjustments that are needed.
+</label>
+<spacer />
+<label>
+Plot progress is stored in the SVG file itself. If you plan
+to quit Inkscape and resume later, save the document first.
+</label>
+
+</vbox>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+
+</page>
+
+
+<page name='setup' gui-text='Setup'>
+
+<image>nextdraw_deps/nextdrawcore/inx_img/setup_tab.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<hbox >
+<image width="30" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="pen_pos_up" type="int" min="0" max="100" appearance="full" 
+gui-description='Height of the pen (percentage) to use when the "pen is up."'
+gui-text="Pen height: UP (%):">60</param>
+<param name="pen_pos_down" type="int" min="0" max="100" appearance="full"
+gui-description='Height of the pen (percentage) to use when the "pen is down."'
+gui-text="Pen height: DOWN, (%):">30</param>
+</vbox>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+
+<image width="10" height="15">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<hbox>
+<vbox indent="8">
+<param name="setup_type" type="optiongroup"
+appearance="radio" gui-text='Action on "Apply": '
+gui-description='Choose one of three things to do when you press Apply: (1) 
+Cycle the pen holder up and down before inserting your pen. (2) Raise the pen and
+turn off the horizontal motors, which is sometimes helpful for setup. (3) Perform
+automatic homing (on supported models).'
+>
+<option value="cycle"
+>Cycle pen down then up</option>
+<option value="find_home">Perform automatic homing</option>
+<option value="align">Raise pen, turn off motors</option>
+</param>
+</vbox>
+</hbox>
+
+
+<label indent="3" appearance="header">
+With your selection, press "Apply" to...
+</label>
+
+<label indent="3">
+- Cycle your pen holder down and up before inserting your pen above the paper.
+</label>
+<spacer />
+<label indent="3">
+- Perform automatic homing (on supported models).
+</label>
+<spacer />
+<label indent="3">
+- Without automatic homing, raise pen and turn off stepper motors to manually move carriage to the Home Corner (back left).
+</label>
+</page>
+
+<page name='options' gui-text='Options'>
+<param name="submode" type="notebook">
+
+<page name='Speed' gui-text='Speed'>
+
+<image>nextdraw_deps/nextdrawcore/inx_img/options_speed.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<hbox >
+<image width="80" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+
+<param name="handling" type="optiongroup" appearance="combo" gui-text="Handling mode:"
+gui-description='Handling modes set the overall speed scales and behavior, changing what
+"100%" speed or acceleraton mean, in order to get the best overall performance. Technical
+drawing emphasizes precision over speed. Handwriting and Sketching prioritize the
+speed of completing your document. Constant speed turns off all acceleration.'
+>
+<option value="1">Technical drawing</option>
+<option value="2">Handwriting</option>
+<option value="3">Sketching</option>
+<option value="4">Constant speed</option>
+</param>
+
+<param name="speed_pendown" type="int" min="1" max="100"
+gui-description="Maximum speed allowed with the pen down, as a percentage of the maximum allowed speed in the handling mode that you have selected."
+gui-text="Pen-down movement speed (%):   ">50</param>
+
+<param name="speed_penup" type="int" min="1" max="100" 
+gui-description="Maximum speed allowed with the pen up, as a percentage of the maximum allowed speed in the handling mode that you have selected."
+gui-text="Pen-up movement speed (%):   ">75</param>
+
+<param name="accel" type="optiongroup" appearance="combo" gui-text="Acceleration:"
+gui-description="Acceleration controls how fast movement changes speed and moves around tight curves."
+>
+<option value="50">Standard</option>
+<option value="100">Maximum</option>
+<option value="75">High</option>
+<option value="35">Slow</option>
+</param>
+
+</vbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+</hbox>
+
+<image>nextdraw_deps/nextdrawcore/inx_img/nd_hr.svg</image>
+<hbox>
+<image width="90" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<vbox>
+
+<param name="pen_rate_raise" type="optiongroup" appearance="combo" gui-text="Pen raising speed :"
+gui-description="Pen raising speed controls how quickly the pen is lifted from the paper.">
+<option value="100">Maximum</option>
+<option value="50">Standard</option>
+<option value="25">Slow</option>
+<option value="12">Very slow</option>
+<option value="6">Dead slow</option>
+</param>
+
+<param name="pen_rate_lower" type="optiongroup" appearance="combo" gui-text="Pen lowering speed :"
+gui-description="Pen lowering speed controls how quickly the pen is lowered onto the paper. Use a lower value for delicate pens, or to reduce the amount of noise that it makes when the pen hits the paper.">
+<option value="50">Standard</option>
+<option value="100">Maximum</option>
+<option value="25">Slow</option>
+<option value="12">Very slow</option>
+<option value="6">Dead slow</option>
+</param>
+</vbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+</page>
+
+
+
+
+<page name="copies" gui-text="Copies">
+
+<image>nextdraw_deps/nextdrawcore/inx_img/copies.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<label indent="4">You can plot a document repeatedly,
+with a time delay between copies. This is especially helpful when performing repeated tasks like writing the same address, logo, or signature repeatedly. </label>
+<spacer />
+<hbox indent="0">
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<vbox indent="3">
+<label appearance="header">Copies:</label>
+
+
+
+<image width="10" height="33">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+</vbox>
+<vbox indent="4">
+<param name="copies" type="int" min="0" max="9999"  
+gui-description="Tip: Select 0 copies to plot continuously until paused."
+gui-text="Copies to Plot:">1</param>	
+<param name="page_delay" type="int" min="0" max="3600" gui-text="Page Delay (s):"
+gui-description="Delay in seconds between finishing each copy and starting the next."
+>15</param>	
+</vbox>
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+</hbox>
+<image width="10" height="20">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<label indent="10">Tip: Select 0 copies to plot continuously.</label>
+
+
+
+</page>
+
+
+
+
+
+<page name='preview' gui-text='Notifications'>
+
+<image>nextdraw_deps/nextdrawcore/inx_img/notifications.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<hbox >
+<image width="80" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="report_time" type="bool" gui-text="Report time elapsed when plotting or previewing"
+gui-description='If checked, report the 
+time and distance every time a plot finishes.
+If this is checked when you "plot" a preview, it will
+report how long the plot will take. Knowing how long plots
+take can be helpful for trying different settings.'
+>false</param> 
+<param name="rendering" type="bool" gui-text="Render pen movement when previewing"
+gui-description='If checked, the expected 
+pen-down and pen-up travel paths will be added 
+to your document when you "plot" with preview mode enabled.'
+>True</param> 
+
+</vbox>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+<image width="10" height="20">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<label appearance="header" indent="5" >Mobile / Online Notifications</label>
+<spacer />
+
+
+<hbox >
+<image width="50" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="webhook" type="bool" gui-text="Notify me when a plot finishes"
+gui-description="You can get a notification on your phone every time a plot finishes-- 
+if you want to. This is a really great feature if you're working on long plots."
+>false</param> 
+</vbox>
+</hbox>
+<param name="webhook_url" indent="4" type="string" gui-text="Webhook URL: "
+gui-description="The URL to send your notification to. See user guide for details on 
+how to set this up."></param>
+
+
+</page>
+
+
+<page name='advanced' gui-text='Advanced'>
+
+<image>nextdraw_deps/nextdrawcore/inx_img/advanced.svg</image>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<hbox >
+<image width="50" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="homing" type="bool" gui-text="Enable automatic homing (on supported models)"
+gui-description="Only applicable on models that support automatic homing.">true</param>
+
+
+<param name="auto_rotate" type="bool" 
+gui-description="Pages taller than wide will be rotated 90 degrees counter-clockwise when printed."
+gui-text="Auto-rotate page when printing">true</param>	
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<param name="random_start" type="bool" gui-text="Randomize starts of closed paths"
+gui-description="Randomize the starting point of closed-loop paths. Enabling
+this option can remove visual artifacts from lowering the pen at the same point
+on similar or repeated elements in your file."
+>false</param>
+
+<param name="hiding" type="bool" gui-text="Hidden-line removal"
+gui-description="Tip: Hidden-line removal can be slow. 
+It also ignores path orientation, so full optimization is recommended.
+&#10;&#10;Note that when enabled, only paths that have a defined stroke will be drawn."
+>false</param>
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<param name="reordering" type="optiongroup" appearance="combo" gui-text="Plot optimization:"
+gui-description="Optimization changes the order and direction of paths in order to reduce
+the total plotting time."
+>
+<option value="0">Least; Only connect adjoining paths</option>
+<option value="1">Basic; Also reorder paths for speed</option>
+<option value="2">Full; Also allow path reversal</option>
+<option value="4">None; Strictly preserve file order</option>
+</param>
+
+
+
+</vbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+</page>
+
+<page name="sysinfo" gui-text="Configuration">
+
+<image>nextdraw_deps/nextdrawcore/inx_img/config.svg</image>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<hbox >
+<image width="60" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+
+<param name="model" type="optiongroup" appearance="combo" gui-text="Model:"
+gui-description="Select your plotter model. Choosing a model limits XY travel and configures
+options including homing ability and pen-lift motor type."
+>
+<option value="8">Bantam Tools NextDraw™ 8511</option>
+<option value="9">Bantam Tools NextDraw™ 1117</option>
+<option value="10">Bantam Tools NextDraw™ 2234</option>
+<option value="1">AxiDraw V3 or SE/A4</option>
+<option value="2">AxiDraw V3/A3 or SE/A3</option>
+<option value="6">AxiDraw SE/A2</option>
+<option value="5">AxiDraw SE/A1</option>
+<option value="7">AxiDraw V3/B6</option>
+<option value="4">AxiDraw MiniKit</option>
+<option value="3">AxiDraw V3 XLX</option>
+</param>
+
+<param name="penlift" type="optiongroup" appearance="combo" gui-text="Pen-lift motor:"
+gui-description="If you are using an AxiDraw with a brushless pen-lift upgrade, select that upgrade here to configure the software.">
+<option value="1">Default for model</option>
+<option value="3">Brushless upgrade</option>
+</param>
+
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+<param name="port_config" type="optiongroup" appearance="combo" gui-text="Machine selection:"
+gui-description="By default, use the first plotter that is located on USB. You can override that to use a specific machine or plot the same document to multiple machines."
+>
+<option value="1">Use First located</option>
+<option value="2">Use machine named below</option>
+<option value="3">Plot to all machines</option>
+</param>
+
+<param name="port" type="string" gui-text="Machine name or port: "
+gui-description='Serial port name or plotter "USB Nickname" as assigned with NextDraw Naming.'
+></param>
+
+</vbox>
+</hbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<image>nextdraw_deps/nextdrawcore/inx_img/nd_hr.svg</image>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+<label appearance="header" indent="2">
+
+Press "Apply" with this tab selected to check online for updates.</label>
+
+
+
+</page></param></page>
+
+<page name="utility" gui-text="Utility">
+
+<image>nextdraw_deps/nextdrawcore/inx_img/utility.svg</image>
+<image width="10" height="5">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+
+
+
+<hbox >
+<image width="30" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<label appearance="header">
+Press "Apply" with this tab selected to execute one of various "utility" commands.
+</label>
+</vbox>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+<spacer />
+
+<hbox >
+<image width="80" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<param name="utility_cmd" type="optiongroup" appearance="combo"
+gui-text="Command: ">
+<option value="none"       >- Select -</option>
+<option value="walk_x"     >Walk Carriage (X, inches)</option>
+<option value="walk_y"     >Walk Carriage (Y, inches)</option>
+<option value="walk_mmx"   >Walk Carriage (X, mm)</option>
+<option value="walk_mmy"   >Walk Carriage (Y, mm)</option>
+<option value="walk_home"  >Walk Home</option>
+<option value="set_home"   >Set Home</option>
+<option value="raise_pen"  >Raise the Pen</option>
+<option value="lower_pen"  >Lower the Pen</option>
+<option value="toggle"     >Toggle the Pen up/down</option>
+<option value="enable_xy"  >Enable XY Motors</option>
+<option value="disable_xy" >Disable XY Motors</option>
+<option value="bootload"   >Enter Bootloader mode</option>
+<option value="strip_data" >Strip plotter data from file</option>
+<!--
+<option value="res_adj_mm" >Adjust pause position, mm</option>
+<option value="res_adj_in" >Adjust pause position, inches</option>
+<option value="res_read"   >Read resume position</option>
+-->
+
+</param>
+<param name="dist" indent="1" type="float" precision="3" min="-100000" max="100000"
+    gui-text="Walk distance:"
+gui-description="Distance value; the units of this value depend on the specific utility command selected. For example, you can walk in inches or millimeters with the different commands."
+>1.000</param>
+</vbox>
+<image width="10" height="10">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+<spacer />
+
+
+<hbox >
+<image width="30" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+<vbox >
+<label>
+Caution: The "walk" utility commands will move the carriage as
+requested, without regard to the current position. Moving too
+far or in the wrong direction may cause NextDraw to try and
+move beyond its physical limits of travel.
+</label>
+</vbox>
+<image width="10" height="1">nextdraw_deps/nextdrawcore/inx_img/spacer_10px.svg</image>
+</hbox>
+
+
+</page>
+
+
+
+</param>
+
+<param name="preview" type="bool" indent="8" 
+    gui-text="Preview mode (Simulate plotting only)"
+gui-description="Preview mode turns off communication with the plotter over USB.&#10;With Preview mode checked, press Apply with the Plot tab selected to simulate a plot.
+&#10;&#10;If enabled in the Options > Notification tab, simulated plots can also draw expected pen movement on your page and calculate plot duration.
+&#10;Some functions, like cycling the pen down and up, aren't available in Preview mode."
+>false</param>
+
+<effect needs-live-preview="false">
+<object-type>all</object-type>
+<effects-menu>
+</effects-menu>
+</effect>
+
+<script>
+<command location="extensions" interpreter="python">nextdraw_control.py</command>
+</script>
+
+</inkscape-extension>

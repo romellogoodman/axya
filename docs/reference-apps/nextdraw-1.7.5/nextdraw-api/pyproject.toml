@@ -1,0 +1,48 @@
+[project]
+
+name = "nextdraw_api"
+
+version = "1.7.5"
+
+description = "CLI and Python API for Bantam Tools NextDraw"
+
+readme = "README.txt"
+
+requires-python = ">=3.10"
+
+maintainers = [
+  {name = "Bantam Tools", email = "hello@bantamtools.com" }
+]
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+dynamic = ["dependencies"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.scripts]
+nextdraw = "nextdraw.__main__:nextdraw_CLI"
+
+[project.urls]  # Optional
+"CLI API documentation" = "https://bantam.tools/nd_py'"
+"Python API documentation" = "https://bantam.tools/nd_cli"
+"A project by" = "https://bantamtools.com"
+
+
+
+[project.optional-dependencies]
+dev =  ["nextdrawcore>=0.1.0", "coverage", "mock", "pyfakefs"] # see Installation instructions
+test = ["coverage", "mock", "pyfakefs"]
+
+[build-system]
+requires = ["setuptools >= 40.6.0"]
+build-backend = "setuptools.build_meta"

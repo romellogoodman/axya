@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noEqualsToNull: better than !== null & !== undefined */
 import { EventEmitter } from "node:events";
 import type { OpenOptions } from "@serialport/bindings-interface";
 import { SerialPort as NodeSerialPort } from "serialport";
@@ -14,8 +15,8 @@ function readableStreamFromAsyncIterable<T>(iterable: AsyncIterable<T>) {
           controller.enqueue(value);
         }
       },
-      async cancel(reason) {
-        await it.throw(reason);
+      async cancel() {
+        await it.return?.();
       },
     },
     { highWaterMark: 0 },
@@ -27,18 +28,18 @@ interface SerialPortOpenOptions extends Omit<OpenOptions, "parity"> {
 
 export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   private _path: string;
-  private _port: NodeSerialPort;
+  private _port!: NodeSerialPort;
 
   public constructor(path: string) {
     super();
     this._path = path;
   }
 
-  public onconnect: (this: this, ev: Event) => void;
-  public ondisconnect: (this: this, ev: Event) => void;
-  public readable: ReadableStream<Uint8Array>;
-  public writable: WritableStream<Uint8Array>;
-  public connected: boolean;
+  public onconnect: ((this: SerialPort, ev: Event) => void) | null = null;
+  public ondisconnect: ((this: SerialPort, ev: Event) => void) | null = null;
+  public readable!: ReadableStream<Uint8Array>;
+  public writable!: WritableStream<Uint8Array>;
+  public connected = false;
 
   public forget(): Promise<void> {
     return Promise.resolve();
@@ -54,19 +55,14 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     if (options.parity != null) opts.parity = options.parity;
 
     return new Promise((resolve, reject) => {
-      this._port = new NodeSerialPort(opts, (closeErr) => {
+      this._port = new NodeSerialPort(opts, (openErr) => {
         this._port.once("close", () => this.emit("disconnect"));
-        if (closeErr) reject(closeErr);
-        else {
-          // Flush RX buffer before considering the port "ready"
-          this._port.flush((flushErr) => {
-            if (flushErr) reject(flushErr);
-            else {
-              this.connected = true;
-              resolve();
-            }
-          });
+        if (openErr) {
+          reject(openErr);
+          return;
         }
+        this.connected = true;
+        resolve();
       });
       this.readable = readableStreamFromAsyncIterable(this._port);
       this.writable = new WritableStream({
@@ -90,7 +86,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
           rts: signals.requestToSend,
           brk: signals.break,
         },
-        (err: Error) => {
+        (err) => {
           if (err) reject(err);
           else resolve();
         },
@@ -105,7 +101,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   }
   public close(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this._port.close((err: Error) => {
+      this._port.close((err) => {
         if (err) reject(err);
         else resolve();
         this.connected = false;
@@ -115,7 +111,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
 
   public addEventListener(
     type: "connect" | "disconnect",
-    listener: (this: this, ev: Event) => void,
+    listener: (this: SerialPort, ev: Event) => void,
     useCapture?: boolean,
   ): void;
   public addEventListener(
@@ -134,7 +130,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
 
   public removeEventListener(
     type: "connect" | "disconnect",
-    callback: (this: this, ev: Event) => void,
+    callback: (this: SerialPort, ev: Event) => void,
     useCapture?: boolean,
   ): void;
   public removeEventListener(

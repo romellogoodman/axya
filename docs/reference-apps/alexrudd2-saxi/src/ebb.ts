@@ -1,4 +1,4 @@
-import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
+import { type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
 import { type Vec2, vsub } from "./vec.js";
 
 enum MicrostepMode {
@@ -23,6 +23,9 @@ type EBBCommand =
   | `XM,${number},${number},${number}` // mixed-axis move
   | `LM,${number},${number},${number},${number},${number},${number}` // low-level move
 
+  // Configure commands
+  | `CU,${number},${number}` // configure user options (e.g. CU,4,n = motion FIFO depth, fw >= 3.0.0)
+
   // Servo commands
   | `S2,${number},${number}` // basic servo position
   | `S2,${number},${number},${number}` // with rate
@@ -32,12 +35,12 @@ type EBBCommand =
   | `SR,${number},${PowerState}`; // servo power timeout with immediate state
 
 type EBBQuery =
-  // queries that return a single line
+  // queries that don't return OK in legacy mode
   | "V" // version
   | "QM"; // query motors
 
 type EBBQueryM =
-  // queries that return multiple lines
+  // queries that return OK in legacy mode
   | "QB" // query button
   | "QC"; // query configuration
 
@@ -49,18 +52,31 @@ function modf(d: number): [number, number] {
 }
 
 export type Hardware = "v3" | "brushless" | "nextdraw-2234";
+const PENDING = Symbol("PENDING");
 
-type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
-  resolve: (value: TReturn) => void;
-  reject: (reason: Error) => void;
-};
+/**
+ * The minimal serial transport the EBB needs: a byte stream in each direction
+ * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
+ * but so does any pair of intermediate streams (such as to/from a worker)
+ */
+
+export interface EBBPort {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  close(): Promise<void>;
+}
+
+interface PendingCommand {
+  handle: (line: string) => unknown | typeof PENDING;
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  cancelled: boolean;
+}
 
 export class EBB {
-  public port: SerialPort;
-  private commandQueue: CommandGenerator[];
+  public port: EBBPort;
+  private commandQueue: PendingCommand[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
-  private readableClosed: Promise<void>;
   public hardware: Hardware;
 
   private microsteppingMode = MicrostepMode.DISABLED;
@@ -68,17 +84,20 @@ export class EBB {
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
   private error: Vec2 = { x: 0, y: 0 };
 
-  private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
+  public firmwareVersion!: [number, number, number];
 
-  public constructor(port: SerialPort, hardware: Hardware = "v3") {
+  private constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
-    this.writer = this.port.writable.getWriter();
+    if (!port.readable || !port.writable) {
+      throw new Error("Serial port opened but readable/writable streams are unavailable");
+    }
+    this.writer = port.writable.getWriter();
     this.commandQueue = [];
 
     let buffer = "";
 
-    this.readableClosed = port.readable
+    port.readable
       .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
       .pipeTo(
         new WritableStream({
@@ -89,34 +108,51 @@ export class EBB {
 
             for (const part of parts) {
               if (part.trim() === "") continue; // empty line
-              if (this.commandQueue.length) {
-                if (part[0] === "!") {
-                  // error from EBB
-                  this.commandQueue.shift()?.reject(new Error(part));
-                  continue;
-                }
 
-                try {
-                  const d = this.commandQueue[0].next(part);
-                  if (d.done) {
-                    this.commandQueue.shift()?.resolve(d.value);
-                  }
-                } catch (e) {
-                  this.commandQueue.shift()?.reject(e as Error);
-                }
-              } else {
+              if (part === "!8 Err: Unknown command 'OK:4F4B'") continue; // initial startup
+
+              const cmd = this.commandQueue[0];
+              if (!cmd) {
                 console.log(`unexpected data: ${part}`);
+                continue;
+              }
+              if (cmd.cancelled) {
+                this.commandQueue.shift(); // silently drain an orphaned response
+                continue;
+              }
+              if (part[0] === "!") {
+                // error from EBB
+                this.commandQueue.shift()?.reject(new Error(part));
+                continue;
+              }
+              try {
+                const result = cmd.handle(part);
+                if (result !== PENDING) {
+                  this.commandQueue.shift()?.resolve(result);
+                }
+              } catch (e) {
+                this.commandQueue.shift()?.reject(e as Error);
               }
             }
           },
         }),
       )
-      .catch((error) => {
+      .catch((error: unknown) => {
         // Swallow premature close error; the disconnect handler takes care of it
-        if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") {
+        if ((error as NodeJS.ErrnoException).code !== "ERR_STREAM_PREMATURE_CLOSE") {
           throw error;
         }
       });
+  }
+
+  public static async create(port: EBBPort, hardware: Hardware = "v3"): Promise<EBB> {
+    const ebb = new EBB(port, hardware);
+    const versionString = await ebb.query("V");
+    console.log(`Firmware version: ${versionString}`);
+    const versionWords = versionString.split(" ");
+    const [major, minor, patch] = versionWords[versionWords.length - 1].split(".").map(Number);
+    ebb.firmwareVersion = [major, minor, patch];
+    return ebb;
   }
 
   private get stepMultiplier() {
@@ -144,72 +180,102 @@ export class EBB {
       console.log(`writing: ${str}`);
     }
     const encoder = new TextEncoder();
-    return this.writer.write(encoder.encode(str));
+    // biome-ignore lint/style/useTemplate: clarity
+    return this.writer.write(encoder.encode(str + "\r"));
   }
 
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
   public async query(cmd: EBBQuery): Promise<string> {
     try {
-      return await this.run(function* (): Iterator<string, string, string> {
-        this.write(`${cmd}\r`);
-        const result = yield;
-        return result;
-      });
+      return await this.run(cmd, (line) => line);
     } catch (err) {
       throw new Error(`Error in response to query '${cmd}': ${(err as Error).message}`);
     }
   }
 
-  /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
-  public async queryM(cmd: EBBQueryM): Promise<string[]> {
+  /** Send a raw command to the EBB and expect a response with a single "OK", or echoed command and then response. */
+  public async queryM(cmd: EBBQueryM): Promise<string> {
+    const prefix = `${cmd},`;
+    let data = "";
     try {
-      return await this.run(function* (): Iterator<string[], string[], string> {
-        this.write(`${cmd}\r`);
-        const result: string[] = [];
-        while (true) {
-          const line = yield;
-          if (line === "OK") { break; } // biome-ignore format: compactness
-          result.push(line);
-        }
-        return result;
+      return await this.run(cmd, (line) => {
+        if (line.startsWith(prefix)) return line.slice(prefix.length); // future: complete reply
+        if (line === "OK") return data; // legacy: terminator
+        data = line; // legacy: data line
+        return PENDING;
       });
     } catch (err) {
       throw new Error(`Error in response to queryM '${cmd}': ${(err as Error).message}`);
     }
   }
 
-  /** Send a raw command to the EBB and expect a single "OK" line in return. */
+  /** Send a raw command to the EBB and expect a single "OK" or echoed command line in return. */
   public async command(cmd: EBBCommand): Promise<void> {
     try {
-      return await this.run(function* (): Iterator<void, void, string> {
-        this.write(`${cmd}\r`);
-        const ok = yield;
-        if (ok !== "OK") {
-          throw new Error(`Expected OK, got ${ok}`);
+      return await this.run(cmd, (line) => {
+        if (line === "OK") return; // legacy mode
+
+        const command = cmd.split(",", 1)[0];
+        if (line === command) return; // future mode
+        if (line.startsWith(`${command},!`)) {
+          throw new Error(line);
         }
+        throw new Error(`Expected OK, got ${line}`);
       });
     } catch (err) {
       throw new Error(`Error in response to command '${cmd}': ${(err as Error).message}`);
     }
   }
 
-  /** Reject all pending commands immediately **/
-  public cancel(): void {
-    while (this.commandQueue.length > 0) {
-      this.commandQueue.shift()?.reject(new Error("Cancelled"));
+  /**
+   * Deepen the EBB's motion FIFO (firmware >= 3.0.0).
+   *
+   * With the boot default of a 1-deep FIFO, any host stall longer than one
+   * block (GC pause, OS scheduling hiccup) starves the steppers and the
+   * carriage visibly stutters. A deeper FIFO keeps up to N commands buffered
+   * on the board, so the machine glides through host stalls. By default the
+   * FIFO is set to 255 so the board will clamp to its max; SAXI_FIFO_DEPTH=n overrides,
+   * and SAXI_FIFO_DEPTH=1 restores the boot default (the setting persists on
+   * the board until power-cycled, so an explicit 1 is the only reliable "off").
+   */
+  public async configureFifoDepth(): Promise<void> {
+    try {
+      const requested = Math.floor(Number(process.env.SAXI_FIFO_DEPTH || 0));
+      if (this.firmwareVersionCompare(3, 0, 0) < 0) {
+        if (requested > 1) {
+          console.log("[saxi] SAXI_FIFO_DEPTH ignored: firmware < 3.0.0 has a fixed 1-deep FIFO");
+        }
+        return;
+      }
+      const depth = requested >= 1 ? requested : 255; // firmware will clamp to max possible
+      await this.command(`CU,4,${depth}`);
+      console.log(`[saxi] EBB motion FIFO depth set to ${depth} (firmware clamps to max)`);
+    } catch (err) {
+      console.log(`[saxi] failed to set FIFO depth: ${(err as Error).message}`);
     }
   }
+
+  /** Cancel all pending commands. Commands already sent to the board are
+   *  marked and left as sentinels so their in-flight responses are received
+   *  by the reader (which will discard them) */
+  public cancel(): void {
+    for (const cmd of this.commandQueue) {
+      cmd.cancelled = true;
+      cmd.reject(new Error("Cancelled"));
+    }
+  }
+
   public async enableMotors(microsteppingMode: RunningMicrostepMode): Promise<void> {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
     // if the board supports SR, we should also enable the servo motors.
-    if (await this.supportsSR()) await this.setServoPowerTimeout(0, true);
+    if (this.supportsSR()) await this.setServoPowerTimeout(0, true);
   }
 
   public async disableMotors(): Promise<void> {
     await this.command("EM,0,0");
     // if the board supports SR, we should also disable the servo motors.
-    if (await this.supportsSR())
+    if (this.supportsSR())
       // 60 seconds is the default boot-time servo power timeout.
       await this.setServoPowerTimeout(60000, false);
   }
@@ -225,7 +291,7 @@ export class EBB {
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {
     const timeoutMs = (timeout * 1000) | 0;
-    if (power != null) {
+    if (power !== undefined) {
       const powerState: PowerState = power ? 1 : 0;
       await this.command(`SR,${timeoutMs},${powerState}`);
     } else {
@@ -316,18 +382,20 @@ export class EBB {
     }
   }
 
-  public async executeBlockWithLM(block: Block): Promise<void> {
-    const [errX, stepsX] = modf((block.p2.x - block.p1.x) * this.stepMultiplier + this.error.x);
-    const [errY, stepsY] = modf((block.p2.y - block.p1.y) * this.stepMultiplier + this.error.y);
+  public async executeBlockWithLM(
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    vInitial: number,
+    vFinal: number,
+  ): Promise<void> {
+    const [errX, stepsX] = modf((p2x - p1x) * this.stepMultiplier + this.error.x);
+    const [errY, stepsY] = modf((p2y - p1y) * this.stepMultiplier + this.error.y);
     this.error.x = errX;
     this.error.y = errY;
     if (stepsX !== 0 || stepsY !== 0) {
-      await this.moveWithAcceleration(
-        stepsX,
-        stepsY,
-        block.vInitial * this.stepMultiplier,
-        block.vFinal * this.stepMultiplier,
-      );
+      await this.moveWithAcceleration(stepsX, stepsY, vInitial * this.stepMultiplier, vFinal * this.stepMultiplier);
     }
   }
   /**
@@ -336,8 +404,16 @@ export class EBB {
    * Note that the LM command is only available starting from EBB firmware version 2.5.3.
    */
   public async executeXYMotionWithLM(plan: XYMotion): Promise<void> {
-    for (const block of plan.blocks) {
-      await this.executeBlockWithLM(block);
+    const n = plan.length;
+    for (let i = 0; i < n; i++) {
+      await this.executeBlockWithLM(
+        plan.p1x(i),
+        plan.p1y(i),
+        plan.p2x(i),
+        plan.p2y(i),
+        plan.vInitial(i),
+        plan.vFinal(i),
+      );
     }
   }
 
@@ -365,7 +441,7 @@ export class EBB {
 
   /** Execute a constant-acceleration motion plan, starting and ending with zero velocity. */
   public async executeXYMotion(plan: XYMotion): Promise<void> {
-    if (await this.supportsLM()) {
+    if (this.supportsLM()) {
       await this.executeXYMotionWithLM(plan);
     } else {
       await this.executeXYMotionWithXM(plan);
@@ -401,6 +477,7 @@ export class EBB {
   }
 
   public async executePlan(plan: Plan, microsteppingMode: RunningMicrostepMode = MicrostepMode.EIGHTH): Promise<void> {
+    await this.configureFifoDepth();
     await this.enableMotors(microsteppingMode);
 
     for (const m of plan.motions) {
@@ -417,7 +494,7 @@ export class EBB {
    * @return Tuple of (RA0_VOLTAGE, V+_VOLTAGE, VIN_VOLTAGE)
    */
   public async queryVoltages(): Promise<[number, number, number]> {
-    const [ra0Voltage, vPlusVoltage] = (await this.queryM("QC"))[0].split(/,/).map(Number);
+    const [ra0Voltage, vPlusVoltage] = (await this.queryM("QC")).split(",").map(Number);
     return [
       ra0Voltage / 1023.0 * 3.3,
       vPlusVoltage / 1023.0 * 3.3,
@@ -426,35 +503,13 @@ export class EBB {
   }
 
   /**
-   * Query the firmware version running on the EBB.
-   *
-   * @return The version string, e.g. "EBBv13_and_above EB Firmware Version 2.5.3"
-   */
-  public async firmwareVersion(): Promise<string> {
-    return await this.query("V");
-  }
-
-  /**
-   * @return The firmware version as a parsed version triple, e.g. [2, 5, 3]
-   */
-  public async firmwareVersionNumber(): Promise<[number, number, number]> {
-    if (this.cachedFirmwareVersion === undefined) {
-      const versionString = await this.firmwareVersion();
-      const versionWords = versionString.split(" ");
-      const [major, minor, patch] = versionWords[versionWords.length - 1].split(".").map(Number);
-      this.cachedFirmwareVersion = [major, minor, patch];
-    }
-    return this.cachedFirmwareVersion;
-  }
-
-  /**
    * Compare the firmware version of the EBB with the given version.
    *
    * @return -1 if the firmware is older than the given version, 0 if it's
    * identical, and 1 if it's newer.
    */
-  public async firmwareVersionCompare(major: number, minor: number, patch: number): Promise<number> {
-    const [fwMajor, fwMinor, fwPatch] = await this.firmwareVersionNumber();
+  public firmwareVersionCompare(major: number, minor: number, patch: number): number {
+    const [fwMajor, fwMinor, fwPatch] = this.firmwareVersion;
     if (fwMajor < major) return -1;
     if (fwMajor > major) return 1;
     if (fwMinor < minor) return -1;
@@ -470,21 +525,21 @@ export class EBB {
   }
 
   public async queryButton(): Promise<boolean> {
-    return (await this.queryM("QB"))[0] === "1";
+    return (await this.queryM("QB")) === "1";
   }
 
   /**
    * @return true iff the EBB firmware supports the LM command.
    */
-  public async supportsLM(): Promise<boolean> {
-    return (await this.firmwareVersionCompare(2, 5, 3)) >= 0;
+  public supportsLM(): boolean {
+    return this.firmwareVersionCompare(2, 5, 3) >= 0;
   }
 
   /**
    * @return true iff the EBB firmware supports the SR command.
    */
-  public async supportsSR(): Promise<boolean> {
-    return (await this.firmwareVersionCompare(2, 6, 0)) >= 0;
+  public supportsSR(): boolean {
+    return this.firmwareVersionCompare(2, 6, 0) >= 0;
   }
 
   /**
@@ -506,16 +561,16 @@ export class EBB {
     return [initialRate, deltaR];
   }
 
-  private run<T>(g: (this: EBB) => Iterator<T>): Promise<T> {
-    const cmd = g.call(this);
-    const d = cmd.next();
-    if (d.done) {
-      return Promise.resolve(d.value);
-    }
-    this.commandQueue.push(cmd);
+  private run<T>(cmd: string, handle: (line: string) => T | typeof PENDING): Promise<T> {
     return new Promise((resolve, reject) => {
-      cmd.resolve = resolve;
-      cmd.reject = reject;
+      this.commandQueue.push({
+        handle,
+        resolve: (value) => resolve(value as T),
+        reject,
+        cancelled: false,
+      });
+
+      void this.write(cmd);
     });
   }
 }

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
   "formatter": {
     "indentStyle": "space",
     "lineWidth": 120
@@ -9,7 +9,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "a11y": {},
       "correctness": {
         "noInvalidUseBeforeDeclaration": "off",
@@ -28,7 +28,14 @@
         "noInferrableTypes": "error",
         "noUselessElse": "error"
       },
-      "security": { "noBlankTarget": "error" }
+      "security": { "noBlankTarget": "error" },
+      "suspicious": { "noEqualsToNull": "warn", "noUnknownAttribute": "error" },
+      "nursery": {
+        "noFloatingPromises": "warn",
+        "noRestrictedDependencies": "warn",
+        "noUndeclaredClasses": "warn",
+        "useAwaitThenable": "error"
+      }
     }
   },
   "overrides": [

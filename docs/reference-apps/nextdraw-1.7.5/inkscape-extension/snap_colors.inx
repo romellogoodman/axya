@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Snap Colors to Layers</name>
+  <id>command.bantamtools.snap_colors</id>
+
+<param name="tab" type="notebook">
+<page name="splash" gui-text="Snap Colors">
+
+<hbox>
+  <vbox>
+    <param name="color_1" type="color" appearance="colorbutton" gui-text="Color 1: ">0x000000ff</param>
+    <param name="color_2" type="color" appearance="colorbutton" gui-text="Color 2:">0xFF0000ff</param>
+    <param name="color_3" type="color" appearance="colorbutton" gui-text="Color 3:">0xFFA500ff</param>
+    <param name="color_4" type="color" appearance="colorbutton" gui-text="Color 4:">0xFFFF00ff</param>
+    <param name="color_5" type="color" appearance="colorbutton" gui-text="Color 5:">0x008000ff</param>
+    <param name="color_6" type="color" appearance="colorbutton" gui-text="Color 6:">0x0000FFff</param>
+    <param name="color_7" type="color" appearance="colorbutton" gui-text="Color 7:">0x800080ff</param>
+    <param name="color_8" type="color" appearance="colorbutton" gui-text="Color 8:">0x8B4513ff</param>
+  </vbox>
+  <vbox>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+    <spacer size="5"/>
+  </vbox>
+  <vbox>
+    <hbox>
+      <param name="layer_1" type="string" gui-text="Layer Name:">1-black</param>
+      <param name="enable_1" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_2" type="string" gui-text="Layer Name:">2-red</param>
+      <param name="enable_2" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_3" type="string" gui-text="Layer Name:">3-orange</param>
+      <param name="enable_3" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_4" type="string" gui-text="Layer Name:">4-yellow</param>
+      <param name="enable_4" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_5" type="string" gui-text="Layer Name:">5-green</param>
+      <param name="enable_5" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_6" type="string" gui-text="Layer Name:">6-blue</param>
+      <param name="enable_6" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_7" type="string" gui-text="Layer Name:">7-violet</param>
+      <param name="enable_7" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+    <hbox>
+      <param name="layer_8" type="string" gui-text="Layer Name:">8-brown</param>
+      <param name="enable_8" type="bool" gui-text="Enable This Color">true</param>
+    </hbox>
+  </vbox>
+</hbox>
+<spacer />
+
+<param indent="7" name="snap_layers" type="bool"
+        gui-text="Move objects to named layers">true</param>
+<spacer />
+
+<label indent="2">
+This tool sorts, or "snaps", objects with colored strokes to enabled colors
+from the list above. It can also, optionally, move them into named layers.
+</label>
+<label indent="2">
+You can edit the colors, layer names, and which colors are enabled for sorting.
+</label>
+
+ </page>
+<page name="info" gui-text="More Info">
+
+<spacer />
+
+<label indent="2" appearance="header">This tool makes changes to your document!</label>
+<spacer />
+<label indent="4" >
+Tip 1: Save your document before applying this tool.
+</label>
+<spacer />
+<label indent="4" >
+Tip 2: Use the live preview option to preveiw its action.
+</label>
+<spacer />
+<label indent="4" >
+Tip 3: To snap/move only some items, click Apply with only those items selected.
+</label>
+<spacer />
+<label indent="4" >
+Tip 4: If you are not moving items to new layers, you can select items by color later, for example to move selected items to different layers. To do so, select one item and then from the menu bar choose:
+</label>
+<label indent="6" appearance="header">
+Edit > Select Same > Stroke Color
+</label>
+
+<spacer />
+<spacer />
+
+<separator />
+
+<spacer />
+<spacer />
+<hbox indent="4"><label>NextDraw documentation:</label>
+<label appearance="url">https://bantam.tools/nddocs</label></hbox>
+
+<spacer />
+
+
+<label indent="6">
+Version 1.1.0     —      Copyright 2025 Bantam Tools
+</label>
+
+ </page>
+  </param>
+
+  <effect needs-live-preview="true" needs-document="true">
+    <object-type>all</object-type>
+	<effects-menu>
+    <submenu name="Bantam Tools Utilities"/>
+	</effects-menu>
+  </effect>
+    <script>
+        <command location="extensions" interpreter="python">snap_colors.py</command>
+    </script>
+</inkscape-extension>

@@ -1,0 +1,145 @@
+Bantam Tools NextDraw™ API Change Log
+
+
+This document notes changes that affect the APIs. It does
+not cover all internal changes nor bug fixes.
+
+Please see https://bantam.tools/nd_cli/ for current CLI API documentation and
+and https://bantam.tools/py_cli/ for current Python API documentation.
+
+
+=========================================
+
+v1.7 -- October 2026
+
+Update minimum plotink (now 1.14.3) and ink_extensions dependencies.
+Python version support updates: Remove support for Python 3.9, add support for Python 3.14.
+Python versions 3.10 - 3.14 are now supported. (Python 3.9 end of life was 2025-10-05.)
+Python 3.15 support is coming: we will release an update adding it as soon as our
+    dependencies support Python 3.15.
+Hidden-line removal is faster for documents with many large paths, and no longer omits
+    some exactly vertical or horizontal line segments.
+sysinfo mode: The human-readable output of sysinfo has changed. Stable software,
+    early-release, and EBB firmware update notices now each use distinct wording;
+    only a stable software update is reported as "An update is available".
+
+Fixed some significant issues around using the Resume (res_plot) mode to start a
+    new plot (rather than _resuming_ paused plot), at a starting position set with
+    res_adj_in/res_adj_mm. This includes support for starting plots with layer
+    choices, rather than all layers.
+
+CLI: Added --offset_start flag to start plotting from an offset position specified
+    by --dist. Works with plot, layers, and res_plot modes.
+
+CLI: The --dist option now supports unit suffixes (e.g., 5in, 5mm, 5cm) for
+    specifying distances in explicit units.
+
+=========================================
+
+v1.6.0 -- August 2025
+
+Performance updates; significantly faster initial processing of documents and previews.
+
+Archived release [here](https://software-download.bantamtools.com/nd/api/nd_api_160.zip).
+
+=========================================
+
+v1.5.0 -- July 2025
+
+Bug fix update; no changes to API.
+
+=========================================
+
+v 1.4.6 -- Updates to homing and manual walk behavior (May 2025)
+
+
+1. Several changes to how the home position is determined and managed, 
+for both automatic and manual homing.
+
+A. Changes when automatic homing is enabled:
+If any of the Walk Carriage commands (walk_x, walk_y, walk_mmx, walk_mmy, walk_home)
+are used when both (1) automatic homing is enabled and (2) the carriage has not already
+been homed, the automatic homing sequence will run before executing that command.
+
+That is to say that in addition to the cases of starting a plot or entering interactive
+mode, the automatic homing sequence is also now initiated when using any of the five
+Walk Carriage commands.
+
+B. Changes for manual homing:
+Bug fixes and general updates have been made to the behavior when automatic homing
+is not enabled (on hardware that does not support automatic homing, or when the automatic
+homing option is disabled), to better match the behavior of the machine to that specified
+in the documentation. The machine is considered to be in the Home position at the point
+at which the motors are first enabled after applying power to the motors, which may be
+via an Enable Motors command, a Walk Carriage command, starting a plot, or entering
+interactive mode.
+
+2. Changes to how XY offsets are managed with Walk Carriage commands
+
+These changes are made to allow plots to be started with different XY offsets, and to
+better match the behavior of the machine to what is specified in the documentation.
+
+3. New set_home utility command.
+
+This command sets the current XY carriage position to be the Home position, such that
+(for example) the walk_home utility command returns the carriage to _this_ position
+(and not, e.g., the location after automatic homing or where motors were enabled).
+
+As part of this we introduce the concept of a Global Origin and local origin within
+the API documentation.
+
+4. Added note to Python API documentation about simulating keyboard interrupts
+
+5. Change to preview rendering with digest option enabled
+If digest == 1 and preview is enabled, the plot preview will be rendered and
+displayed on the Plob document. Previously, previews were not actually rendered;
+this change is made to better match the behavior to that specified in the
+documentation. Preview rendering can be disabled by using digest = 2, with
+options.rendering in the python API, or no_render in the CLI.
+
+6. Python version support updates:
+Remove support for python 3.8, add support for Python 3.13.
+Python versions 3.9 - 3.13 are currently supported. (Python 3.8 end of life was on 2024-10-07.)
+
+7. Significant bug fixes across the board, including improvements to the precision
+of the pause and resume system.
+
+8. New parameter sync_b3 in the config file; used to synchronize use of pin B3 in motion.
+
+9. Updated some of the example files.
+
+Archived release: https://software-download.bantamtools.com/nd/api/nd_api_146.zip
+
+
+=========================================
+
+v 1.3 -- Bug fixes & general updates (July 2024)
+
+NextDraw Layer Control (https://support.bantamtools.com/hc/en-us/articles/29473928061971)
+now supports different optimization levels by layer. 
+
+
+Archived release: https://software-download.bantamtools.com/nd/api/nd_api_130.zip
+
+Bug fix update 1.3.2 (October 2024):
+https://software-download.bantamtools.com/nd/api/nd_api_132.zip
+
+1.3.2 bumps the minimum lxml version to 5.2.1, to avoid an upstream error in lxml.
+
+=========================================
+
+
+v 1.1 -- Initial public release (June 2024)
+
+As of this release,
+Python versions 3.8 - 3.12 are currently supported.
+
+Archived release: https://software-download.bantamtools.com/nd/api/nd_api_110.zip
+
+
+
+
+=========================================
+
+
+~~~ Copyright 2026 Windell H. Oskay, Bantam Tools ~~~

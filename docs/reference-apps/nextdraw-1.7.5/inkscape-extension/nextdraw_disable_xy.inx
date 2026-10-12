@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+<name>Disable XY Motors</name>
+<id>command.bantamtools.nextdraw_disable</id>
+<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
+<dependency type="executable" location="extensions">nextdraw_control.py</dependency>
+
+
+<param name="mode" type="string" gui-hidden="true">utility</param>
+<param name="utility_cmd" type="string" gui-hidden="true">disable_xy</param>
+<param name="model" type="int" gui-text="This text cannot be blank" gui-hidden="true">0</param>
+
+<effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+    <submenu name="Bantam Tools Utilities"/>
+    </effects-menu>
+</effect>
+
+<script>
+<command location="extensions" interpreter="python">nextdraw_control.py</command>
+</script>
+
+</inkscape-extension>

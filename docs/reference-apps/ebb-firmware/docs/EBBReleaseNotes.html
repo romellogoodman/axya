@@ -1,0 +1,545 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    
+    <title>Eggbot Software by Evil Mad Scientist Laboratories</title>
+    
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Eggbot</h1>
+        <p>Software for the Original EggBot Kit</p>
+        <p class="view">
+          <a href="https://github.com/evil-mad/EggBot">View the Project on GitHub <small>evil-mad/EggBot</small></a>
+        </p>
+        <ul>
+          <li><a href="https://github.com/evil-mad/EggBot">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+
+        <h1>
+          <a id="eggbot" class="anchor" href="#eggbot" aria-hidden="true">
+          <span aria-hidden="true" class="octicon octicon-link"></span></a>EBB Release Notes
+        </h1>
+        <p>This document details the version history of the <a href="http://www.schmalzhaus.com/EBB/">EBB</a> (EiBotBoard) firmware.</p>
+
+        <p />
+        <hr />
+        <p />
+        <p />
+
+        <h4>v2.0.1 &mdash; 9/13/10</h4>
+        <p>Bug fix - on v1.1 EBB hardware, need to disable RB0 alt pause button. Switched it to RB2 on v1.1 hardware.</p>
+
+        <h4>v2.0.2 &mdash; 10/3/10</h4>
+        <p>Bug fix - QC command not returning proper results - added cast and now works OK.</p>
+
+        <H4>v2.1.0 &mdash; 10/21/10</H4>
+        <p> 
+          <ul>
+            <li>Added in SE - Set Engraver - turns engraver (on RB3) on or off, or set to PWM power level</li>
+            <li>Added code in init to pre-charge RC7 (USB_SENSE_IO) high before running rest of code to get around wrong resistor value on hardware.</li>
+          </ul>
+        </p>
+        
+        <h4>v2.1.1 &mdash; 11/21/10</h4>
+        <p>
+          <ul>
+            <li>Removed Microchip USB stack v2.7, replaced it with v2.8 from MAL 2010_10_19.</li>
+            <li>Also using generic Microchip folder now rather than re-named one (simpler to update).</li>
+            <li>Updated code in main.c (and others) to match updates from latest MAL CDC example.</li>
+          </ul>
+        </p>
+
+        <h4>v2.1.1cTest1 &mdash; 01/17/11</h4>
+        <p>Added third parameter to SP command to use any PortB pin for servo output. (For this version only - used PortB2 as standard servo output.)</p>
+        
+        <h4>v2.1.1d  &mdash; 02/11/11</h4>
+        <p>
+          <ul>
+            <li>Reverted back to RB1 for servo output</li>
+            <li>Updated check_and_send_TX_data() to allow unlimited data to go out without overrunning the output buffer, same as UBW 1.4.7.</li>
+          </ul>
+        </p>
+
+        <h4>v2.1.2  &mdash; 11/04/11</h4>
+        <p>
+          <ul>
+            <li>Fixed PI command to return just a 0 or a 1</li>
+            <li>Updated to USB stack 2.9a</li>
+            <li>Created MPLAB X project for this firmware</li>
+            <li>Added SC,14,&lt;state&gt; to enable/disable solenoid output on RB4</li>
+            <li>Fixed bug with S2 command and solenoid command interaction - we now turn off solenoid output on RB4 if user uses S2 command to use RB4 for RC servo output.</li>
+            <li>Fixed bug with S2 command where a duration of 0 would not shut off the PWM channel</li>
+            <li>Fixed bug in S2 command where &lt;rate&gt; variable was not being used correctly</li>
+            <li>Switched default number of S2 channels to 8 (from 7 before)</li>
+          </ul>
+        </p>
+
+        <h4>v2.1.3  &mdash; 12/12/11</h4>
+        <p>
+          <ul>
+            <li> RB3 now defaults to digital I/O on boot, can still use SE command to do PWM later if you want</li>
+            <li>Compiled with latest UBW stack - 2.9b from MAL 2011-10-18</li>
+          </ul>
+        </p>
+        
+        <h4>v2.1.4  &mdash; 12/14/11</h4>
+        <p>RB3 now defaults to OFF, rather than ON, at boot.</p>
+        
+        <h4>v2.1.5  &mdash; 12/15/11</h4>
+        <p>Fixed problem with pen servo (RB1) being inverted on boot</p>
+        
+        <h4>v2.2.0  &mdash; 11/07/12</h4>
+        <p>Fixed problem with SP command not working properly with  ports other than RB1 because we don't properly use S2 commands for SP up/down within ISR. Tested on all PortB. </p>
+        
+        <h4>v2.2.1  &mdash; 09/19/13</h4>
+        <p>
+          <ul>
+            <li>Expanded internal delay counter to 32 bits so we can have delays longer than 2.1s. Now up to 64k ms.</li>
+            <li>Fixed bug with all &lt;duration&gt; parameters, SM, SP, TP commands. Now in ms, defaults to 500 ms, and actually works up to 64K ms.</li>
+            <li>Fixed uninitialized data bug with command FIFO. We were seeing very long random delays first time SM,&lt;delay&gt;,0,0 was used.</li>
+            <li>SP command was executing servo move at end of &lt;duration&gt;. It now starts servo move and &lt;duration&gt; delay at same time.</li>
+            <li>Updated USB stack to Microchip MAL USB v2.9j</li>
+          </ul>
+        </p>
+        
+        <h4>v2.2.2  &mdash; 10/15/13</h4>
+        <p>
+          <ul>
+            <li>Fixed bug with SE command that was preventing anything other than 50% duty cycle from working.</li>
+            <li>Updated SC,2,{0,1,2} to control PIC and drivers connection
+              <ul>
+                <li>0 = PIC controls built in drivers</li>
+                <li>1 = PIC controls external step/dir/en drives</li>
+                <li>2 = external step/dir/en controls built-in drivers</li>
+              </ul>
+            </li>
+            <li>Also updated the pins that are used for driving external step/dir/en drives. (See documentation)</li>
+            <li>Updated SC,1,{0,1,2} documentation to match code and removed SC,14 which is not needed.</li>
+            <li>Updated logic for EM command to use state of SC,2,{0,1,2} properly.</li>
+            <li>Added SC,14,{0,1} to switch between default of 1/(25 kHz) units for SP and TP command
+            &lt;duration&gt; parameters, and 1 ms units</li>
+          </ul>
+        </p>
+
+        <h4>v2.2.3  &mdash; 01/11/14</h4>
+        <p>Rewrote analog system so we don't have problems with QC commands anymore. New command AC.</p>
+        
+        <h4>v2.2.4  &mdash; 04/28/14</h4>
+        <p>
+          <ul>
+            <li>Fixed bug where 0 for duration in SM would cause problems</li>
+            <li>
+              Found bug where the &lt;servo_min&gt; and &lt;servo_max&gt; values were reversed in the SP command. This has now been fixed so that SP commands will operate the same as v2.0.1 version.
+            </li>
+            <li>Set initial 'position' of main servo to be 1mS to mimic behavior of v2.0.1 firmware.</li>
+            <li>Updated license to BSD 3-clause</li>
+            <li>
+              Changed SP and TP commands so that if no &lt;duration&gt; parameter is used, it does not default to 500 ms delay, but rather 0mS. This should now work exactly as v2.0.1 when no parameter is used.
+            </li>
+            <li>
+              Tested v2.2.4 against v2.0.1 with Seleae Logic analyzer. Looked at several Inkscape plots. Confirmed that timing of steppers and servo are the same. Confirmed that all RB0 through RB7 outputs are the same between the two versions.
+            </li>
+          </ul>
+        </p>
+        
+        <h4>v2.2.5  &mdash; 04/29/14</h4>
+        <p>
+          <ul>
+            <li>Added 'long' arguments to SM for &lt;move_duration&gt; and &lt;axis1&gt; and &lt;axis2&gt;. All can be 3 bytes now.</li>
+            <li>dded checks in SM command to make sure that arguments don't result in a step speed that's too low (&lt;0.76Hz).</li>
+          </ul>
+        </p>
+        
+        <h4>v2.2.6  &mdash; 01/01/15</h4>
+        <p>Added 'QM' command - Query Motor, tells PC what is moving.</p>
+        
+        <h4>v2.2.7  &mdash; 08/13/15</h4>
+        <p>
+          Added 'ES' command, which will immediately abort any SM command but leave the motors energized. (E-stop) It returns "1" if it aborted a move in progress, "0" otherwise. It will also delete any pending SM command in the FIFO.
+        </p>
+        
+        <h4>v2.2.8  &mdash; 08/14/15</h4>
+        <p>
+          Corrected error checking in SM command to accurately reflect too fast and too slow requests. (&gt;25K or &lt;1.31 steps per second)
+        </p>
+        
+        <h4>v2.2.9  &mdash; 08/18/15</h4>
+        <p>Added extra values to output of ES command to indicate how  many steps were aborted.</p>
+        
+        <h4>v2.3.0  &mdash; 08/28/15</h4>
+        <p>Added new XM command as per issue #29 for driving mixed-axis geometry machines.</p>
+        
+        <h4>v2.4.0  &mdash; 03/14/16</h4>
+        <p>
+          Added new AM command for using accelerated stepper motion. Includes going to 32 bit accumulators in ISR to achieve necessary resolution, which includes changes to SM command as well. Also added "CU,2,0" to turn of SM command parameter checking for speed.
+        </p>
+        <p>
+          NOTE: AM command may not be quite 'right' yet. Although it has passed simple tests, it could not be made to reliably work from the Inkscape plugin, so it is not currently being used. It may have to change in future versions of this firmware.
+        </p>
+
+        <h4>v2.4.1 &mdash; 08/08/16</h4>
+        <p>
+          <ul>
+            <li>Added new form of SE command, with optional parameter that puts SE in motion queue. (issue #51)</li>
+            <li>Fixed issue #52 (bug in parameter check in parse_SM_packet())</li>
+          </ul>
+        </p>
+        
+        <h4>2.4.2 &mdash; 08/10/16</h4>
+        <p>
+          <ul>
+            <li>
+              Fixed bug in SE command that would set engraver to 50% if SE,1,0 was used. Also added engraver power to FIFO structure for when third SE parameter is 1.
+            </li>
+          </ul>
+        </p>
+        
+        <h4>2.4.3 &mdash; 11/07/16</h4>
+        <p>
+          <ul>
+            <li>Added QS (Query Step position) and CS (Clear Step position) commands.</li>
+          </ul>
+        </p> 
+
+        <h4>2.4.4 &mdash; 11/16/16</h4>
+        <p>
+          <ul>
+            <li>Added extra FIFO state output to QM command.</li>
+          </ul>
+        </p> 
+
+        <h4>2.4.5 &mdash; 01/07/17</h4>
+        <p>
+          <ul>
+            <li>Math bug in SM/XM command fixed. See <a href="https://github.com/evil-mad/EggBot/issues/71">issue #71 in GitHub</a> for details.</li>
+          </ul>
+        </p>
+
+        <h4>2.5.0 &mdash; 01/14/17</h4>
+        <p>
+          <ul>
+            <li>Added new 'LM' command for low level motion control. See <a href="https://github.com/evil-mad/EggBot/issues/73">issue #73 in GitHub</a> for details.</li>
+          </ul>
+        </p>
+
+        <h4>2.5.1 &mdash; 01/18/17</h4>
+        <p>
+          <ul>
+            <li>Fixed LM command to take negative and positive StepAddIncs</li>
+            <li>Fixed 25 kHz ISR to be much closer to 25 kHz</li>
+          </ul>
+        </p>
+        
+        <h4>2.5.2 &mdash; 07/07/17</h4>
+        <p>
+          <ul>
+            <li>Fixed issue #78 : detected and reject 0,0 for LM command</li>
+            <li>Fixed some uninitialized variables</li>
+            <li>LM StepAddInc parameter went to 32 bits signed from 16 bit signed</li>
+          </ul>
+        </p>
+
+        <h4>2.5.3 &mdash; 07/09/17</h4>
+        <p>
+          <ul>
+            <li>Fixed issue #79 : Fixed bug in LM command that would corrupt currently running moves with new data.</li>
+          </ul>
+        </p>
+
+        <h4>2.5.4 &mdash; 01/06/18</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/axidraw/issues/39">issue #39</a> the following commands were added:</li>
+            <li>Added QT (Query Tag), ST (Set Tag) commands.</li>
+            <li>Added RB (ReBoot) command</li>
+            <li>Added any name set with ST command to end of USB Device Name</li>
+            <li>Fixed issue <a href="https://github.com/evil-mad/EggBot/issues/82">issue #82</a> - could not read 1 (high) from any port's bit 7</li>
+          </ul>
+        </p>
+        
+        <h4>2.5.5 &mdash; 07/06/18</h4>
+        <p>
+          <ul>
+            <li>Enhanced the ST command to write to both device name and serial number USB fields.</li>
+          </ul>
+        </p>
+
+        <h4>2.5.6 &mdash; 07/13/18</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/103">issue #103</a> the following commands were added:</li>
+            <li>Added QR (Query RC Servo power state) command</li>
+            <li>Added SR (Set RC Servo poweroff timeout value) command</li>
+            <li>In addition, for EBB v1.5 and above, the RC Servo's 5 V power signal is now controlled by the firmware, to allow the servo
+            to power down after some amount of time (either set by the SR command or defaults to 1 hour), but power is restored upon any
+            command using the motors or the servo.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.0 &mdash; 09/08/18</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/103">issue #103</a> the following commands were added:</li>
+            <li>SR (Set RC Servo poweroff timeout value) command changed to be SR,<i>new_timeout</i>>,<i>new_state</i> where <i>new_state</i> is optional.</li>
+            <li>The default servo up time has been set to 22565 (1.878 ms)</li>
+            <li>The default servo down time has been set to 15302 (1.274 ms)</li>
+            <li>The EBB will always send the servo to the up state on reset, and start with power off to the servo</li>
+            <li>The default servo power off timeout is now 15 minutes</li>
+          </ul>
+        </p>
+
+        <h4>2.6.1 &mdash; 01/09/19</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/111">issue #111</a> the QG (Query General) command was added.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.2 &mdash; 01/13/19</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/113">issue #113</a> the HM (Home Motors) command was added.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.3 &mdash; 05/24/19</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/118">issue #118</a> the default RC servo power down timeout was changed from 15 minutes to 60 seconds.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.4 &mdash; 11/05/19</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/124">issue #124</a> a math bug in the SM command was fixed that caused an error under 
+            certain input parameters when the SM command should have been executed normally.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.5 &mdash; 11/29/19</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/126">issue #126</a> the behavior of the
+            SR command has been modified. It now will only trigger power to the RC servo after commands which need
+            to move the servo (like SP), and will no longer apply power to the servo if the steppers are moved.</li>
+          </ul>
+        </p>
+
+        <h4>2.6.6 &mdash; 05/26/20</h4>
+        <p>
+          <ul>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/137">issue #137</a> Fixed a bug with the 
+            PC/PG command which caused some PC command changes not to take effect for up to 64K more milliseconds.</li>
+          </ul>
+        </p>
+
+        <h4>2.7.0 &mdash; 11/19/20</h4>
+        <p>
+          <ul>
+            <li>While investigating <a href="https://github.com/evil-mad/EggBot/issues/143">issue #143</a>,
+            we discovered some unexpected behavior due to issues in the prior implementation of the LM
+            command. The LM command has been rewritten to make computation easier and provide accurate
+            and consistent behavior that is also consistent with the documentation.
+            </li>
+            <li>Bug fix: The "Rate" parameter in the LM command can no longer become negative during a move.
+            </li>
+            <li>Added new LT (low-level timed move) command, based on updated LM command.
+            </li>
+            <li>Added optional "clear" parameter to SM, XM, LM, and LT commands.
+            </li>
+            <li>Added optional destination parameters (absolute step locations) to HM command.
+            </li>
+            <li>Optimized math and logic inside step ISR for shorter minimum move durations.
+            </li>
+            <li>EM command now always clears accumulators.
+            </li>
+            <li>Reduced effective external step pulse times to between 1.6 &mu;s and 2.3 &mu;s (from 2.8 &mu;s to 3.0 &mu;s).
+            </li>
+            <li>Fixed a bug present in all motion commands that could lead to a 40 &mu;s dead "gap" between subsequent motion commands; individual motion commands can (in principle) now be as short as a single 40 &mu;s "ISR" cycle.
+            </li>
+            <li>Removed AM command.
+            </li>
+            <li>In response to <a href="https://github.com/evil-mad/EggBot/issues/144">issue #144</a> the behavior of the S2 command has been modified so that it, like the SP command, counts as a "pen action"
+            that will reset servo power timeout. See the <a href="http://evil-mad.github.io/EggBot/ebb.html#SR">SR</a> command documentation for more information.
+            </li>
+            <li>Added new "<a href="http://evil-mad.github.io/EggBot/ebb.html#performance">Performance</a>" section to documentation,
+            with much more detail about movement command performance under different conditions.
+          </ul>
+        </p>
+
+        <h4>2.8.0 &mdash; 04/22/21</h4>
+        <p>
+          <ul>
+            <li>
+              In response to <a href="https://github.com/evil-mad/EggBot/issues/152">issue #152</a> Move the EM command
+              to be part of the motion queue. This allows EM commands to take place at a predictable point in the motion 
+              sequence rather than sort of randomly during a move.
+            </li>
+            <li>
+              In response to <a href="https://github.com/evil-mad/EggBot/issues/151">issue #151</a> Added QE command to 
+              query the motor enable states and microstep resolutions.
+            </li>
+            <li>
+              In response to <a href="https://github.com/evil-mad/EggBot/issues/153">issue #153</a> the ES command was 
+              given an optional parameter to disable the motors.
+            </li>
+           </ul>
+        </p>
+
+        <h4>2.8.1 &mdash; 07/27/22</h4>
+        <p>
+          <ul>
+            <li>
+              In response to <a href="https://github.com/evil-mad/EggBot/issues/180">issue #180</a> Added a new debugging
+              option: CU,3,1 and CU,3,0 to enable/disable the use of the red (USR) LED as an 'empty FIFO' indicator.
+            </li>
+           </ul>
+        </p>
+
+        <h4>3.0.0 &mdash; 03/01/24</h4>
+        <p>
+          Version 3.0.0 represents the largest group of changes ever made to the EBB firmware codebase. Many separate changes (see below) were bundled together into one large release so that PC software could count on all of the v3.0.0 features being present together. Besides new commands, refactoring of critical code sections and other functional changes, a significant effort was put into cleaning up the source code. A unified style was applied to all source files and significant comments were added throughout the codebase and in particular in the critical and complex motion ISR. A significant amount of effort was also undertaken to add in HIL (hardware in the loop) test functionality into the shipping firmware image. This allows PC based test routines to verify all sorts of timing and logic functionality in an automated or semi-automated manner. 
+        </p>
+        <p>
+          Even with all of the changes in this version, many attempts have been made to produce default behavior which is almost completely compatible with previous EBB versions.
+        </p>
+        <p>
+          <ul>
+            <li>
+              A 'jerk enabled' version of the <code>LT</code> command was added called the <code>T3</code> command for time limited moves with jerk control.
+            </li>
+            <li>
+              A 'jerk enabled' version of the <code>LM</code> command was added called the <code>L3</code> command for rate controlled moves with jerk control.
+            </li>
+            <li>
+              The motion control ISR received a significant re-factorization to add in support for new commands and decrease typical code path time as much as possible.
+            </li>
+            <li>
+              The FIFO was expanded to allow for up to 32 commands to be queued. At boot the FIFO length defaults to 1 for backward compatibility. See commands <code>CU,4</code> for setting the FIFO depth, <code>QU,2</code> for reading the maximum supported FIFO depth, and <code>CU,3</code> for reading out the current FIFO depth.
+            </li>
+            <li>
+              New low level floating point based routines were added to allow much simpler math as well as larger parameter values for the 'simple' motion control commands <code>SM</code>, <code>XM</code> and <code>HM</code>.
+            </li>
+            <li>
+              In order to free up some RAM for the larger FIFO, the maximum number of simultaneous RC servo outputs was reduced from 24 to 8. This change does not affect which pins are available for RC servo output, only how many can be active at once.
+            </li>
+            <li>
+              Removed <code>PC</code>, <code>PG</code> and <code>T</code> commands as per <a href="https://github.com/evil-mad/EggBot/issues/216">issue #216</a>
+            </li>
+            <li>
+              Added "Future Syntax Mode" - see <code>CU,10</code> command - based on <a href="https://github.com/evil-mad/EggBot/issues/139">issue #139</a>. This change allows a user to turn on a mode where every response from the EBB follows the exact same format to make machine parsing of responses more efficient.
+            </li>
+            <li>
+              Added limit switch support - see <code>CU,51</code>, <code>CU,52</code> and <code>CU,53</code> commands - based on <a href="https://github.com/evil-mad/EggBot/issues/58">issue #58</a>. These commands allow for a hardware limit switch (or several) to be enabled which, when triggered, can stop any motor motion.
+            </li>
+            <li>
+              The <code>QG</code> command has been modified. Bit 7 now reports the limit switch triggered value, and bit 6 reports the power lost flag. In particular, the power lost flag allows the PW to know if the EBB's power has dipped low enough to cause a loss of step position, which could be used to alert the user. See <code>CU,60</code> for information relating to setting the <i>Power_Lost_Threshold</i> value.
+            </li>
+            <li>
+              The <code>SL</code> and <code>QL</code> commands have been enhanced to allow up to 32 to 8-bit values to be stored and retrieved.
+            </li>
+            <li>
+              A new mode has been added which requires a checksum at the end of every command sent to the EBB. See <code>CU,54</code> for more information.
+            </li>
+            <li>
+              The ability to more explicitly control which stepper motor drivers are enabled was added as part of command <code>CU,50</code>. This allows for the freewheeling of one motor while the other motor executes a move for example.
+            </li>
+            <li>
+              Software test modes were added and are enabled using <code>CU,250</code> through <code>CU,257</code>.
+            </li>
+          </ul>
+        </p>
+
+        <h4>3.0.1 &mdash; 04/02/23</h4>
+        <p>
+          <ul>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/223">Issue #223</a> Added a new <code>TD</code> command to create a faster way to execute two T3 commands back to back to create S-curves.
+            </li>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/222">Issue #222</a> Added a new <code>SP,2</code> and <code>SP,3</code> commands to immediately raise the pen (without going through the FIFO).
+            </li>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/221">Issue #221</a> Added a new <code>QU,6</code> command to query the current number of moves in the FIFO (i.e. how 'full' the FIFO is).
+            </li>
+           </ul>
+        </p>
+
+        <h4>3.0.2 &mdash; 05/06/24</h4>
+        <p>
+          <ul>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/228">Issue #228</a> Removed 'Param_Number' in replies to the <code>QU</code> command to simplify PC side parsing of replies.
+            </li>
+           </ul>
+        </p>
+
+        <h4>3.0.3 &mdash; 05/26/24</h4>
+        <p>
+          <ul>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/228">Issue #233</a> Fixed numerous problems with EBB error reporting while parsing. Added documentation to document the actual behavior when errors are detected.
+            </li>
+           </ul>
+        </p>
+
+        <h4>3.1.0 &mdash; 03/13/26</h4>
+        <p>
+          <ul>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/issues/237">Issue #237</a> Update to L3 documentation to include Jerk.
+            </li>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/pull/240">Pull Request #240</a> Fix for incorrect time accounting in LT, T3, TD commands at end of command. Updates to L3 command documentation. Other documentation cleanups.
+            </li>
+           </ul>
+        </p>
+
+        <h4>3.1.7 &mdash; 03/24/26</h4>
+        <p>
+          <ul>
+            <li>
+              <a href="https://github.com/evil-mad/EggBot/pull/242">Pull Request #242</a> Optimization to ISR for command copy operations and consistent step pulse width generation on command loads.
+            </li>
+           </ul>
+        </p>
+
+        <p/>
+        <hr/>
+        <p/>
+ 
+        <div style="text-align: center;">
+          <a rel="license" href="http://creativecommons.org/licenses/by/3.0/us/"><img alt="Creative Commons License" src="images/88x31.png" style="border: 0px solid ; width: 88px; height: 31px;"></a><p />
+        </div>
+
+        <span xmlns:dc="http://purl.org/dc/elements/1.1/" property="dc:title">EiBotBoard</span> by <a xmlns:cc="http://creativecommons.org/ns#" href="http://www.schmalzhaus.com/EBB" property="cc:attributionName" rel="cc:attributionURL">Brian Schmalz</a> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/us/">Creative Commons Attribution 3.0 United States License</a>. Based on a work at <a xmlns:dc="http://purl.org/dc/elements/1.1/" href="http:///www.schmalzhaus.com/EBB" rel="dc:source">www.schmalzhaus.com/EBB</a>. Permissions beyond the scope of this license may be available at <a xmlns:cc="http://creativecommons.org/ns#" href="http://www.schmalzhaus.com/EBB" rel="cc:morePermissions">www.schmalzhaus.com/EBB</a>.
+
+        <p />
+        <hr>
+        <p />
+        <p>Extended EggBot documentation available at: <a href="http://wiki.evilmadscientist.com/eggbot">http://wiki.evilmadscientist.com/eggbot</a></p>
+      </section>
+    </div>
+
+    <footer>
+      <p>Project maintained by <a href="https://github.com/evil-mad">Evil Mad Scientist Laboratories</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

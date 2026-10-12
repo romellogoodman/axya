@@ -6,7 +6,7 @@
 
 Earlier versions of axya were a browser-only WebSerial port of [saxi](https://github.com/nornagon/saxi). The current architecture is modeled on [@gre's penplotter-web](https://github.com/gre/penplotter-web), which wraps `axicli` in a FastAPI server. axya uses Node/Express instead of Python, and `nextdraw` instead of `axicli` so that Bantam NextDraw hardware is supported alongside AxiDraw.
 
-saxi sources are still vendored under `docs/reference-apps/` for reference.
+saxi, nextdraw 1.7.5, penplotter-web and the EBB firmware are vendored under `docs/reference-apps/`; see [prior-art/](prior-art/README.md) for the analysis and [DRIVER_PORT.md](DRIVER_PORT.md) for the planned native driver.
 
 ## Data flow
 
@@ -37,7 +37,7 @@ saxi sources are still vendored under `docs/reference-apps/` for reference.
 
 Pause sends `SIGINT` to the `nextdraw` process group. `nextdraw` traps it, writes the current position into the SVG's `<plotdata>` element (because `--output_file` points back at the same file), and exits. Resume is a fresh subprocess with `--mode res_plot`, which reads that saved state and continues from where it stopped. This means **pause/resume survives a server restart or browser reload** — the state lives in the SVG file on disk.
 
-Pressing the pause button on the plotter takes the same path from inside `nextdraw`. Every resumable pause exits with code 1 and prints "Use the resume feature to continue", which is how `PlotterManager` tells a pause from an error.
+Pressing the pause button on the plotter takes the same path from inside `nextdraw`. Every resumable pause prints "Use the resume feature to continue", which is how `PlotterManager` tells a pause from an error or a completed plot. The exit code alone can't: SIGINT and button pauses exit 1, but a programmatic pause from a `!` layer exits 0.
 
 Stop is `SIGKILL`. Home is `--mode utility --utility_cmd walk_home`, which uses the saved state to plan a return-to-origin move.
 
