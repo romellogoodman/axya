@@ -35,6 +35,7 @@ export const initialState = {
     startedAt: null,
     error: null,
     canHome: false,
+    driver: null, // "native" or "cli"
     logVersion: 0,
     connected: null, // null=unknown, true=connected, false=no device
   },

@@ -12,7 +12,8 @@
     "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowJs": true
   },
   "include": ["server/**/*.ts", "test/**/*.ts"]
 }

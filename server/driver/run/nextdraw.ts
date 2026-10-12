@@ -75,6 +75,8 @@ export interface NextDrawInit {
   message?: (text: string) => void;
   /** Software pause request (UI pause button); checked before every move. */
   pauseRequested?: () => boolean;
+  /** Called after each executed move, for progress reporting (not in nextdraw). */
+  onMove?: (nd: NextDraw) => void;
 }
 
 type LayerProps = {
@@ -125,6 +127,7 @@ export class NextDraw implements MachineContext {
   name_list: string[] | null = null;
 
   private pauseRequested: () => boolean;
+  private onMove: (nd: NextDraw) => void;
   user_message_fun: (text: string) => void;
 
   constructor(init: NextDrawInit) {
@@ -138,6 +141,7 @@ export class NextDraw implements MachineContext {
     this.clock = init.clock ?? realClock;
     this.user_message_fun = init.message ?? (() => {});
     this.pauseRequested = init.pauseRequested ?? (() => false);
+    this.onMove = init.onMove ?? (() => {});
     this.planner = {
       go_to_position: (x, y, ignoreLimits = false) =>
         this.goToPosition(x, y, ignoreLimits),
@@ -649,6 +653,7 @@ export class NextDraw implements MachineContext {
       distanceInch,
       tD
     );
+    this.onMove(this);
   }
 
   /** ResumeStatus.check_button: 1 pressed, -1 USB error, 0 otherwise. */

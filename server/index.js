@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PlotterManager } from "./plotter.js";
+import { readConfigFile } from "./configFile.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -302,21 +303,13 @@ const CONFIG_NUM_KEYS = new Set(Object.keys(CONFIG_NUM_RANGES));
 app.get(
   "/api/config",
   wrap(() => {
-    const text = fs.readFileSync(CONFIG_PATH, "utf8");
-    const config = {};
-    for (const line of text.split("\n")) {
-      const m = line.match(/^\s*(\w+)\s*=\s*(.+?)\s*$/);
-      if (!m) continue;
-      const [, key, raw] = m;
-      // Only surface keys the UI can write back; anything else in the file
-      // would be echoed back on save and rejected by POST /api/config.
-      if (!CONFIG_BOOL_KEYS.has(key) && !CONFIG_NUM_KEYS.has(key)) continue;
-      if (raw === "True") config[key] = true;
-      else if (raw === "False") config[key] = false;
-      else if (/^-?\d+(\.\d+)?$/.test(raw)) config[key] = Number(raw);
-      else config[key] = raw.replace(/^["']|["']$/g, "");
-    }
-    return config;
+    // Only surface keys the UI can write back; anything else in the file
+    // would be echoed back on save and rejected by POST /api/config.
+    return Object.fromEntries(
+      Object.entries(readConfigFile(CONFIG_PATH)).filter(
+        ([key]) => CONFIG_BOOL_KEYS.has(key) || CONFIG_NUM_KEYS.has(key)
+      )
+    );
   })
 );
 

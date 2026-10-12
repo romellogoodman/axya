@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Modal } from "./Modal.jsx";
 
-export function JogPad({ onJog, onPen, onHome, canHome, busy, onClose }) {
+export function JogPad({ onJog, onPen, onHome, busy, onClose }) {
   const [step, setStep] = useState(10);
 
   const btn = (label, dx, dy) => (
@@ -24,11 +24,9 @@ export function JogPad({ onJog, onPen, onHome, canHome, busy, onClose }) {
           {btn("←", -1, 0)}
           <button
             className="jog-pad__btn jog-pad__btn--home"
-            disabled={busy || !canHome}
+            disabled={busy}
             onClick={onHome}
-            title={
-              canHome ? "Return to home" : "Home available after pause/stop"
-            }
+            title="Return to home"
           >
             ⌂
           </button>

@@ -1,12 +1,17 @@
 # Architecture
 
-**axya** is a local web UI for AxiDraw and Bantam NextDraw plotters. It consists of a React frontend and a small Express backend, both started together with `npm run dev`. The backend does not speak to the plotter directly — every operation spawns Bantam's official [`nextdraw` CLI](https://bantam.tools/nd_cli/), which owns all SVG parsing, motion planning, path optimization, and EBB serial communication.
+**axya** is a local web UI for AxiDraw and Bantam NextDraw plotters: a React frontend and a small Express backend, started together with `npm run dev`. The backend drives the plotter through one of two **drivers**, selected with `AXYA_DRIVER`:
+
+| Driver | What it is | Status |
+|---|---|---|
+| `native` | axya's TypeScript port of Bantam's nextdraw driver (`server/driver/`), talking to the EiBotBoard (EBB) over USB serial directly | Matches nextdraw 1.7.5 command-for-command on every oracle case; awaiting hardware validation |
+| `cli` (default) | Spawns Bantam's [`nextdraw` CLI](https://bantam.tools/nd_cli/) for every action | Transitional; removed once `native` is validated on hardware |
+
+See [DRIVER_PORT.md](DRIVER_PORT.md) for why and how the driver was ported, and [prior-art/](prior-art/README.md) for the research behind it.
 
 ## Lineage
 
-Earlier versions of axya were a browser-only WebSerial port of [saxi](https://github.com/nornagon/saxi). The current architecture is modeled on [@gre's penplotter-web](https://github.com/gre/penplotter-web), which wraps `axicli` in a FastAPI server. axya uses Node/Express instead of Python, and `nextdraw` instead of `axicli` so that Bantam NextDraw hardware is supported alongside AxiDraw.
-
-saxi, nextdraw 1.7.5, penplotter-web and the EBB firmware are vendored under `docs/reference-apps/`; see [prior-art/](prior-art/README.md) for the analysis and [DRIVER_PORT.md](DRIVER_PORT.md) for the planned native driver.
+Earlier versions of axya were a browser-only WebSerial port of [saxi](https://github.com/nornagon/saxi). The second version was modeled on [@gre's penplotter-web](https://github.com/gre/penplotter-web), wrapping Bantam's `nextdraw` CLI. The native driver ports that CLI's internals to TypeScript so axya needs no Python. saxi, nextdraw 1.7.5, penplotter-web and the EBB firmware are vendored under `docs/reference-apps/`.
 
 ## Data flow
 
@@ -20,42 +25,77 @@ saxi, nextdraw 1.7.5, penplotter-web and the EBB firmware are vendored under `do
     │
     │  POST /api/plot {file, layer?}
     ▼
- Express ── spawn ──▶ nextdraw <file> --config db/nextdraw.conf.py
-                               --output_file <file> --progress --report_time
-    │                          [--mode layers --layer N]
-    │  stderr (tqdm) ─▶ regex parse % ─▶ PlotterManager.progress
-    │  stdout/stderr lines ─▶ PlotterManager.logs (ring buffer)
+ PlotterManager (server/plotter.js) ── driver.plot(file, {layer, resume}) ──▶
+    native: NextDraw run in-process ──USB serial──▶ EBB
+    cli:    nextdraw <file> --config … --output_file <file> …   (subprocess)
+    │  progress, log lines, outcome
     ▼
- Browser ◀── SSE /api/events ── status_dict on change ──── PlotterManager
+ Browser ◀── SSE /api/events ── status on change ──── PlotterManager
 ```
 
 ### State machine
 
-`PlotterManager` (server/plotter.js) holds one of `idle | plotting | paused | error` plus `currentFile`, `progress`, `elapsed`, `canHome`, and a 200-line log ring. It emits `change` events; the SSE endpoint pushes `status()` to clients whenever that fires.
+`PlotterManager` holds one of `idle | plotting | paused | error` plus `currentFile`, `currentLayer`, `progress`, `startedAt`, `connected`, `driver`, and a 200-line log ring. It emits `change` events; the SSE endpoint pushes `status()` whenever that fires. Each driver call resolves to an outcome (`complete`, `paused`, `stopped` or `error`) that drives the transition. Only one plot or manual command runs at a time.
 
-### Pause/Resume
+### Plot, pause, resume, stop
 
-Pause sends `SIGINT` to the `nextdraw` process group. `nextdraw` traps it, writes the current position into the SVG's `<plotdata>` element (because `--output_file` points back at the same file), and exits. Resume is a fresh subprocess with `--mode res_plot`, which reads that saved state and continues from where it stopped. This means **pause/resume survives a server restart or browser reload** — the state lives in the SVG file on disk.
-
-Pressing the pause button on the plotter takes the same path from inside `nextdraw`. Every resumable pause prints "Use the resume feature to continue", which is how `PlotterManager` tells a pause from an error or a completed plot. The exit code alone can't: SIGINT and button pauses exit 1, but a programmatic pause from a `!` layer exits 0.
-
-Stop is `SIGKILL`. Home is `--mode utility --utility_cmd walk_home`, which uses the saved state to plan a return-to-origin move.
+- **Plot** always starts over. It first removes any `<nd:plotdata>` resume data from the file; nextdraw otherwise refuses to replot a paused file and exits 0 having done nothing.
+- **Pause** leaves resume data in the SVG, so pause/resume survives a server restart or browser reload.
+  - **native:** sets a flag that the run loop checks before every move.
+  - **cli:** sends `SIGINT` to the `nextdraw` process group. nextdraw writes its position into the SVG's `<plotdata>` (`--output_file` points back at the same file).
+  - Pressing the plotter's pause button takes the same path.
+- **Resume** re-runs in `res_plot` mode, which replans the document and continues from the stored pen-down distance.
+- **Stop** ends a running plot and discards the resume point.
+  - **native:** a pause followed by stripping the resume data.
+  - **cli:** `SIGKILL`.
+  - Cancelling a paused plot also strips the data.
+- **Home** is nextdraw's `walk_home` utility command. It reads the EBB step counter, so it works any time the machine is powered.
 
 ### Manual commands
 
-Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise_pen|lower_pen|walk_mmx|walk_mmy`. Manual commands need a file argument even though they don't read it, so the server writes a 1×1 dummy SVG to `/tmp` at startup.
+Pen up/down and XY jog are nextdraw utility commands: `raise_pen`, `lower_pen`, `walk_mmx` and `walk_mmy`. Under `native` each is one short serial session. Under `cli` each forks a subprocess, which takes about 1 s.
+
+Note that nextdraw's walk commands **shift the plot origin**: the next plot starts where the carriage was jogged to, until `walk_home`.
+
+### Progress and estimates
+
+- **native:**
+  - Progress is pen travel so far, divided by the total from a preview run of the same plot made just before it starts.
+  - Estimates run the planner in preview mode and return its statistics directly.
+- **cli:**
+  - Progress is parsed from nextdraw's tqdm bar on stderr.
+  - Estimates parse `--preview --report_time` output.
+
+Estimates always run on a copy of the file with the resume data removed.
 
 ### Connection detection
 
-`PlotterManager.connected` is `null` until the first command runs, then `true` on a clean exit or `false` when the output matches `NO_DEVICE_RE` ("No available nextdraw units found on USB", "Failed to connect to …", or "USB connection lost during plot").
+`connected` is `null` until the first command runs, then `true` after a successful session and `false` when no EBB is found or the USB link drops.
+- **native:** status codes 101 and 104.
+- **cli:** "No available nextdraw units", "Failed to connect to …" and "USB connection lost" in the output.
 
-### Progress
+The sidebar shows a green or red dot for this.
 
-`--progress` enables a tqdm bar (`ascii=True`) on stderr, e.g. `Plot Progress:  45%|####5     | 123/273`. `PROGRESS_RE` reads the percentage from lines labelled `Plot Progress` or `Copy …`, ignoring the `Page delay` / `Layer delay` bars. The sidebar shows a green/red dot reflecting this.
+### Invoking nextdraw (cli driver)
 
-### Invoking nextdraw
+`NEXTDRAW_CMD` (default `python3 -m nextdraw`) is split on whitespace, so it spawns `python3` with `-m nextdraw` prepended to every argument list. The `nextdraw` pip package installs no standalone binary.
 
-`NEXTDRAW_CMD` (default `python3 -m nextdraw`, set in `server/plotter.js`) is split on whitespace, so it spawns `python3` with `-m nextdraw` prepended to every arg list. The `nextdraw` pip package doesn't install a standalone binary; it only exposes the Python module.
+## The native driver (`server/driver/`)
+
+A port of nextdraw 1.7.5's Python internals, module for module. Each file's header names its source, and [NOTICE](../NOTICE) lists provenance and licenses.
+
+| Directory | Ports | Role |
+|---|---|---|
+| `config.ts`, `models.ts` | `nextdraw_conf.py`, `models.py` | Defaults, options, model and handling tables |
+| `svg/` | `digest_svg.py`, ink_extensions | SVG parsing, transforms, units and layer codes |
+| `digest/` | `path_objects.py`, `boundsclip.py` (`clipping.py` in progress) | Document digest, plob format, bounds clipping, hidden-line removal (in progress) |
+| `optimize/` | `plot_optimizations.py`, rtree, spatial grid | Path joining, supersampling, random start (CPython-exact MT19937), reordering |
+| `motion/` | `motion.py`, `plan_utils.py`, `ebb_calc.py` | S-curve planning and T3/TD command generation, with firmware-exact step arithmetic |
+| `ebb/` | `ebb3_serial.py`, `ebb3_motion.py` | Serial transport (serialport), framing, EBB commands |
+| `machine/` | `pen_handling.py`, `serial_utils.py`, `homing.py` | Pen/servo, status byte, motors, limit-switch homing, utility commands |
+| `run/` | `nextdraw.py`, `dripfeed.py`, `preview.py`, `plot_status.py` | The run loop: modes, copies, layers, pausing, resume data, preview |
+
+Verification is described in [DRIVER_PORT.md](DRIVER_PORT.md#verification-strategy) and [test/oracle/README.md](../test/oracle/README.md). The Python driver, run against a fake EBB, is the reference, and every case must reproduce its command stream exactly.
 
 ## Files
 
@@ -63,25 +103,30 @@ Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise
 
 | File | Role |
 |---|---|
-| `server/index.js` | Express app. REST routes, SSE endpoint, file upload/list/delete, config read/write, Inkscape layer extraction. |
-| `server/plotter.js` | `PlotterManager` — state machine, subprocess spawning, log buffer, progress parsing. |
-| `db/nextdraw.conf.py` | nextdraw-native config file (Python `key = value` syntax). Edited via the Configure modal. |
-| `db/uploads/` | Uploaded SVGs. Persists across restarts. Git-ignored. |
+| `server/index.js` | Express app: REST routes, SSE endpoint, file upload/list/delete, config read/write, Inkscape layer extraction |
+| `server/plotter.js` | `PlotterManager`: state machine, log buffer, driver selection |
+| `server/drivers/native.js` | Native driver adapter: one `NextDraw` run per action |
+| `server/drivers/cli.js` | CLI driver: `nextdraw` subprocesses, output parsing |
+| `server/plotdata.js` | Read and strip `<plotdata>` resume data |
+| `server/configFile.js` | Parse `db/nextdraw.conf.py` |
+| `server/driver/` | The native driver (above) |
+| `db/nextdraw.conf.py` | nextdraw-format config file (Python `key = value`), edited via the Configure modal |
+| `db/uploads/` | Uploaded SVGs. Persist across restarts. Git-ignored. |
 
 ### Frontend
 
 | File | Role |
 |---|---|
-| `src/App.jsx` | Root component. Reducer wiring, SSE subscription, handlers, sidebar JSX, Web Notifications. |
-| `src/state.js` | `initialState`, `reducer`, localStorage persistence. |
-| `src/Preview.jsx` | Canvas preview — plotter travel area + SVG outline + paths in mm. Owns resize observer + DPR. |
-| `src/FileLibrary.jsx` | File picker modal with thumbnails, upload, delete. |
-| `src/ConfigModal.jsx` | Schema-driven form over the nextdraw config keys. |
-| `src/JogPad.jsx` | Arrow-pad XY jog + home + pen up/down. |
-| `src/LogPanel.jsx` | Scrolling command log with timestamps. |
-| `src/Modal.jsx` | Shared modal shell. |
-| `src/lib/api.js` | Fetch wrappers + `subscribeStatus` SSE helper with auto-reconnect. |
-| `src/lib/svg.js` | `parseSVG` (DOMParser + flatten-svg → mm polylines), `PLOTTER_MODELS` travel-area table. |
+| `src/App.jsx` | Root component: reducer wiring, SSE subscription, handlers, sidebar JSX, Web Notifications |
+| `src/state.js` | `initialState`, `reducer`, localStorage persistence |
+| `src/Preview.jsx` | Canvas preview: plotter travel area, SVG outline and paths in mm. Owns the resize observer and DPR. |
+| `src/FileLibrary.jsx` | File picker modal with thumbnails, upload, delete |
+| `src/ConfigModal.jsx` | Schema-driven form over the nextdraw config keys |
+| `src/JogPad.jsx` | Arrow-pad XY jog, home, pen up/down |
+| `src/LogPanel.jsx` | Scrolling command log with timestamps |
+| `src/Modal.jsx` | Shared modal shell |
+| `src/lib/api.js` | Fetch wrappers and the `subscribeStatus` SSE helper with auto-reconnect |
+| `src/lib/svg.js` | `parseSVG` (DOMParser + flatten-svg → mm polylines), `PLOTTER_MODELS` travel-area table |
 | `src/App.scss` | All styles. BEM. |
 
 ## REST API
@@ -94,10 +139,10 @@ Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise
 | GET | `/api/files` | `[{name, size, mtime}]` |
 | GET | `/api/files/:name` | Raw SVG text |
 | GET | `/api/files/:name/layers` | `[{label, number}]` from Inkscape `<g>` labels |
-| POST | `/api/upload` | multipart `file` |
+| POST | `/api/upload` | `?name=`, body: SVG text (`image/svg+xml`) |
 | DELETE | `/api/files/:name` | |
-| POST | `/api/plot` | `{file, layer?}` |
-| POST | `/api/pause` / `/api/resume` / `/api/stop` / `/api/home` | |
+| POST | `/api/plot` | `{file, layer?}`; always starts from the beginning |
+| POST | `/api/pause` / `/api/resume` / `/api/stop` / `/api/home` | `stop` while paused cancels and discards the resume point |
 | POST | `/api/pen/:dir` | `dir` = `up` or `down` |
 | POST | `/api/jog` | `{dx, dy}` in mm |
 | GET | `/api/estimate/:name` | `?layer=N` → `{time, drawDistance, travelDistance, totalDistance}` |
@@ -105,15 +150,12 @@ Pen up/down and XY jog spawn `nextdraw` with `--mode utility --utility_cmd raise
 
 ## Config keys
 
-Written to `db/nextdraw.conf.py` and passed to every `nextdraw` invocation via `--config`. See the [CLI reference](https://bantam.tools/nd_cli/) for full semantics.
+Written to `db/nextdraw.conf.py`. The cli driver passes the file via `--config`; the native driver reads it and splits it into options and params exactly as nextdraw does. See the [CLI reference](https://bantam.tools/nd_cli/) for full semantics.
 
 `model`, `penlift`, `pen_pos_up/down`, `pen_rate_raise/lower`, `pen_delay_up/down`, `handling`, `speed_pendown/penup`, `accel`, `reordering`, `random_start`, `hiding`, `auto_rotate`, `copies`, `page_delay`
 
-In nextdraw 1.x, `handling` (1 technical drawing, 2 handwriting, 3 sketching, 4 constant speed) sets resolution and constant-speed mode. Top-level `resolution` and `const_speed` keys are overwritten by it, so axya doesn't expose them. `GET /api/config` returns only allowlisted keys.
+In nextdraw 1.x, `handling` (1 technical drawing, 2 handwriting, 3 sketching, 4 constant speed) sets resolution and constant-speed mode. Top-level `resolution` and `const_speed` keys are overwritten by it, so axya doesn't expose them. `GET /api/config` returns only allowlisted keys, because the file is executed as Python by the cli driver.
 
-## What the earlier WebSerial version had that this doesn't
+## Preview vs. plot
 
-- **Zero-install** — the old version ran entirely in Chrome via WebSerial. This one needs Node, Python, and `nextdraw` installed.
-- **Fit-to-page / margins** — the sidebar offers paper presets (Letter, Legal, Tabloid, A4, A3, Arch A/B, Custom) and a margin control that draws a paper rect and dotted margin guide on the preview and scales the SVG to fit. This is preview-only; `nextdraw` still plots the SVG at its declared physical size, so author your SVG at the final dimensions (or use `auto_rotate`).
-- **Per-path progress overlay** — the old canvas recolored completed paths. Progress from `nextdraw` is a single percentage, so the new preview shows a top progress bar instead.
-- **Instant pen up/down** — each manual command now forks a subprocess (~1s) rather than sending a serial byte.
+The sidebar offers paper presets (Letter, Legal, Tabloid, A4, A3, Arch A/B, Custom) and a margin control that draws a paper rect and a dotted margin guide on the preview, scaling the SVG to fit. This is preview-only: both drivers plot the SVG at its declared physical size. Author your SVG at the final dimensions, or use `auto_rotate`.

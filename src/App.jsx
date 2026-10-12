@@ -227,7 +227,8 @@ function App() {
       : null;
 
   const summaryPill = config
-    ? `${model.name.split(" ").slice(-1)[0]} · ↑${config.pen_pos_up} ↓${config.pen_pos_down} · ⚡${config.speed_pendown}`
+    ? `${model.name.split(" ").slice(-1)[0]} · ↑${config.pen_pos_up} ↓${config.pen_pos_down} · ⚡${config.speed_pendown}` +
+      (status.driver ? ` · ${status.driver}` : "")
     : "";
 
   return (
@@ -630,7 +631,6 @@ function App() {
       {state.showJog && (
         <JogPad
           busy={busy}
-          canHome={status.canHome}
           onJog={(dx, dy) => run(() => api.jog(dx, dy))}
           onPen={(dir) => run(() => api.pen(dir))}
           onHome={() => run(api.home)}

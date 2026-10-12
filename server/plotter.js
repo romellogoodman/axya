@@ -1,50 +1,34 @@
 /**
- * PlotterManager — state machine around the `nextdraw` CLI subprocess.
+ * PlotterManager: the plotter's state machine (idle | plotting | paused |
+ * error), log buffer and change events, over a pluggable driver:
  *
- * States: idle | plotting | paused | error
- * Every plotter action is a subprocess. Pause = SIGINT (nextdraw saves
- * resume state into the SVG via --output_file), Resume = --mode res_plot.
+ *   drivers/native.js  axya's TypeScript port of the nextdraw driver
+ *   drivers/cli.js     Bantam's `nextdraw` CLI as a subprocess (transitional)
+ *
+ * AXYA_DRIVER=native|cli selects one (default: cli until the native driver
+ * is validated on hardware; see docs/DRIVER_PORT.md).
  */
 
-import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { CliDriver } from "./drivers/cli.js";
+import { NativeDriver } from "./drivers/native.js";
+import { stripPlotDataFile, stripPlotDataText } from "./plotdata.js";
 
-// The nextdraw pip package installs no console script, only the Python module.
-const [NEXTDRAW_EXE, ...NEXTDRAW_PREFIX] = (
-  process.env.NEXTDRAW_CMD || "python3 -m nextdraw"
-)
-  .trim()
-  .split(/\s+/);
-
-// Patterns below match nextdraw 1.x output (nextdrawcore). The progress bar is
-// tqdm with ascii=True, e.g. "Plot Progress:  45%|####5     | 123/273 [...]";
-// "Copy 2 of 3" replaces the label when plotting copies. Anchoring on the
-// label skips the "Page delay" / "Layer delay" bars.
-const PROGRESS_RE = /(?:Plot Progress|Copy [\w ]+?):\s*(\d+)%\|/;
-// "No available nextdraw units found on USB." (no device at startup),
-// "Failed to connect to <model>." (port open failed), and
-// "Error: USB connection lost during plot." (cable pulled mid-plot).
-const NO_DEVICE_RE =
-  /no available nextdraw units|failed to connect|usb connection lost/i;
-// Printed for every resumable pause: SIGINT, the hardware pause button, and
-// programmatic pauses. Not printed for USB/power loss.
-const PAUSED_RE = /use the resume feature to continue/i;
-
-// Dummy 1×1 SVG for manual commands that require a file arg
-const DUMMY_SVG_PATH = path.join(os.tmpdir(), "axya-dummy.svg");
-fs.writeFileSync(
-  DUMMY_SVG_PATH,
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
-);
+export function createDriver(name, opts) {
+  if (name === "native") return new NativeDriver(opts);
+  if (name === "cli") return new CliDriver(opts);
+  throw new Error(`Unknown AXYA_DRIVER "${name}" (expected native or cli)`);
+}
 
 export class PlotterManager extends EventEmitter {
-  constructor({ configPath, uploadsDir }) {
+  constructor({ configPath, uploadsDir, driver }) {
     super();
     this.configPath = configPath;
     this.uploadsDir = uploadsDir;
+    this.driver =
+      driver ?? createDriver(process.env.AXYA_DRIVER || "cli", { configPath });
 
     this.state = "idle";
     this.currentFile = null;
@@ -54,16 +38,26 @@ export class PlotterManager extends EventEmitter {
     this.error = null;
     this.canHome = false;
     this.connected = null; // null=unknown, true=connected, false=no device
+    this.busy = false; // a manual command is running
 
-    this.proc = null;
-    this.pauseRequested = false;
     this.logs = [];
     this.logVersion = 0;
+    this.hooks = {
+      log: (line, level) => this.log(line, level),
+      progress: (pct) => {
+        if (pct !== this.progress) {
+          this.progress = pct;
+          this.emit("change");
+        }
+      },
+    };
+    this.log(`Driver: ${this.driver.name}`);
   }
 
   status() {
     return {
       state: this.state,
+      driver: this.driver.name,
       currentFile: this.currentFile,
       currentLayer: this.currentLayer,
       progress: this.progress,
@@ -76,8 +70,7 @@ export class PlotterManager extends EventEmitter {
   }
 
   log(line, level = "info") {
-    const entry = { t: Date.now(), level, line };
-    this.logs.push(entry);
+    this.logs.push({ t: Date.now(), level, line });
     if (this.logs.length > 200) this.logs.shift();
     this.logVersion++;
     this.emit("change");
@@ -89,291 +82,134 @@ export class PlotterManager extends EventEmitter {
     this.emit("change");
   }
 
-  /** Spawn nextdraw with the given args; stream output to the log buffer. */
-  spawnCli(args, { onLine, detached = false } = {}) {
-    const fullArgs = [...NEXTDRAW_PREFIX, ...args];
-    this.log(`$ ${NEXTDRAW_EXE} ${fullArgs.join(" ")}`, "cmd");
-    const proc = spawn(NEXTDRAW_EXE, fullArgs, {
-      detached,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const handle = (stream, isStderr) => {
-      let buf = "";
-      stream.setEncoding("utf8");
-      stream.on("data", (chunk) => {
-        buf += chunk;
-        let idx;
-        while ((idx = buf.search(/[\r\n]/)) !== -1) {
-          const line = buf.slice(0, idx);
-          buf = buf.slice(idx + 1);
-          if (!line) continue;
-          if (onLine) onLine(line, isStderr);
-          this.log(line, isStderr ? "stderr" : "stdout");
-        }
-      });
-    };
-    handle(proc.stdout, false);
-    handle(proc.stderr, true);
-
-    proc.on("error", (err) => {
-      const msg =
-        err.code === "ENOENT"
-          ? `'${NEXTDRAW_EXE}' not found. Install with: pip install https://software-download.bantamtools.com/nd/api/nextdraw_api.zip`
-          : err.message;
-      this.log(msg, "error");
-      this.setState("error", { error: msg });
-    });
-
-    return proc;
+  filePath(filename) {
+    const p = path.join(this.uploadsDir, path.basename(filename));
+    if (!fs.existsSync(p)) throw new Error(`File not found: ${filename}`);
+    return p;
   }
 
-  /** Start plotting a file from the uploads directory. */
+  /** Start a plot, or resume a paused one. Resolves when it is under way. */
   plot(filename, { layer = null, resume = false } = {}) {
-    if (this.state === "plotting") {
-      throw new Error("A plot is already running");
-    }
-    const filePath = path.join(this.uploadsDir, path.basename(filename));
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filename}`);
-    }
-
-    const args = [
-      filePath,
-      "--config",
-      this.configPath,
-      "--output_file",
-      filePath,
-      "--progress",
-      "--report_time",
-    ];
-    if (resume) {
-      args.push("--mode", "res_plot");
-    } else if (layer != null) {
-      args.push("--mode", "layers", "--layer", String(layer));
-    }
+    if (this.state === "plotting" || this.busy)
+      throw new Error("The plotter is busy");
+    const filePath = this.filePath(filename);
+    // Plot always starts over: nextdraw refuses (silently) to replot a file
+    // that still holds resume data from an earlier pause.
+    if (!resume) stripPlotDataFile(filePath);
 
     this.currentFile = filename;
     this.currentLayer = layer;
-    this.progress = 0;
-    this.startedAt = Date.now();
-    this.error = null;
-    this.canHome = false;
-
-    const runLines = [];
-    this.proc = this.spawnCli(args, {
-      detached: true,
-      onLine: (line) => {
-        runLines.push(line);
-        const m = line.match(PROGRESS_RE);
-        if (m) {
-          this.progress = Number(m[1]);
-          this.emit("change");
-        }
-      },
+    this.setState("plotting", {
+      progress: 0,
+      startedAt: Date.now(),
+      error: null,
+      canHome: false,
     });
-    this.setState("plotting");
+    this.driver
+      .plot(filePath, { layer, resume }, this.hooks)
+      .then((outcome) => this.finishPlot(outcome, filename))
+      .catch((err) => {
+        this.log(err.message, "error");
+        this.setState("error", { error: err.message, canHome: true });
+      });
+  }
 
-    this.proc.on("close", (code, signal) => {
-      this.proc = null;
-      const output = runLines.join("\n");
-      const pauseRequested = this.pauseRequested;
-      this.pauseRequested = false;
-      if (signal === "SIGKILL") {
-        // stop()
-        this.canHome = true;
-        this.setState("idle", { progress: 0 });
-      } else if (pauseRequested || PAUSED_RE.test(output)) {
-        // pause(), or the pause button on the machine (exits with code 1)
-        this.canHome = true;
-        this.setState("paused");
-      } else if (code === 0) {
-        this.connected = true;
-        this.progress = 100;
-        this.setState("idle");
+  finishPlot(outcome, filename) {
+    if (outcome.connected !== undefined) this.connected = outcome.connected;
+    switch (outcome.kind) {
+      case "complete":
+        this.setState("idle", { progress: 100 });
         this.emit("complete", { file: filename });
-      } else {
-        this.canHome = true;
-        if (NO_DEVICE_RE.test(output)) {
-          this.connected = false;
-          this.setState("error", { error: "No plotter connected" });
-        } else {
-          this.setState("error", {
-            error: `nextdraw exited with code ${code}`,
-          });
-        }
-      }
-    });
+        break;
+      case "paused":
+        this.setState("paused", { canHome: true });
+        break;
+      case "stopped":
+        this.setState("idle", { progress: 0, canHome: true });
+        break;
+      default:
+        this.log(outcome.error, "error");
+        this.setState("error", { error: outcome.error, canHome: true });
+    }
   }
 
   pause() {
-    if (this.state !== "plotting" || !this.proc) {
-      throw new Error("Not plotting");
-    }
-    this.pauseRequested = true;
-    this.killGroup(this.proc.pid, "SIGINT");
+    if (this.state !== "plotting") throw new Error("Not plotting");
+    this.driver.requestPause();
   }
 
   resume() {
-    if (this.state !== "paused" || !this.currentFile) {
+    if (this.state !== "paused" || !this.currentFile)
       throw new Error("Nothing to resume");
-    }
-    this.plot(this.currentFile, { resume: true });
+    this.plot(this.currentFile, { layer: this.currentLayer, resume: true });
   }
 
+  /** Stop a running plot, or cancel a paused one (discarding its resume point). */
   stop() {
-    if (!this.proc) {
-      // Nothing running — just clear paused state
-      this.setState("idle", { currentFile: null, canHome: false, progress: 0 });
+    if (this.state === "plotting") {
+      this.driver.requestStop();
       return;
     }
-    this.killGroup(this.proc.pid, "SIGKILL");
+    if (this.currentFile) {
+      try {
+        stripPlotDataFile(this.filePath(this.currentFile));
+      } catch {
+        // file deleted meanwhile; nothing to clear
+      }
+    }
+    this.setState("idle", {
+      currentFile: null,
+      currentLayer: null,
+      progress: 0,
+    });
   }
 
-  /**
-   * Signal the detached process group. Wraps process.kill, which throws ESRCH
-   * if the process already exited (a race against close) and would otherwise
-   * surface as a spurious 400, and guards against a NaN pid from a failed spawn.
-   */
-  killGroup(pid, signal) {
-    if (pid == null) return;
+  async manual(cmd, opts = {}) {
+    if (this.state === "plotting" || this.busy)
+      throw new Error("The plotter is busy");
+    this.busy = true;
     try {
-      process.kill(-pid, signal);
-    } catch (err) {
-      if (err.code !== "ESRCH") throw err;
+      const outcome = await this.driver.utility(cmd, opts, this.hooks);
+      if (outcome.connected !== undefined) this.connected = outcome.connected;
+      this.emit("change");
+      if (outcome.kind === "error") throw new Error(outcome.error);
+    } finally {
+      this.busy = false;
     }
   }
 
+  /** Return the carriage to the origin (walk_home reads the EBB step counter). */
   home() {
-    if (this.state === "plotting") throw new Error("Stop the plot first");
-    if (!this.currentFile) throw new Error("No file to home from");
-    const filePath = path.join(
-      this.uploadsDir,
-      path.basename(this.currentFile)
-    );
-    return this.runOnce([
-      filePath,
-      "--config",
-      this.configPath,
-      "--mode",
-      "utility",
-      "--utility_cmd",
-      "walk_home",
-    ]);
+    return this.manual("walk_home");
   }
 
   pen(direction) {
-    if (this.state === "plotting") throw new Error("Plot in progress");
     if (direction !== "up" && direction !== "down") {
       throw new Error(`Invalid pen direction: ${direction}`);
     }
-    const cmd = direction === "up" ? "raise_pen" : "lower_pen";
-    return this.runOnce([
-      DUMMY_SVG_PATH,
-      "--config",
-      this.configPath,
-      "--mode",
-      "utility",
-      "--utility_cmd",
-      cmd,
-    ]);
+    return this.manual(direction === "up" ? "raise_pen" : "lower_pen");
   }
 
   async jog(dx, dy) {
-    if (this.state === "plotting") throw new Error("Plot in progress");
-    // dx/dy reach the CLI as --dist (mm). Reject non-finite or absurd values
-    // so "Infinity"/1e9 can't drive the carriage off its travel area.
+    // dx/dy are mm. Reject non-finite or absurd values so "Infinity"/1e9
+    // can't drive the carriage off its travel area.
     const MAX_JOG_MM = 1000;
     for (const d of [dx, dy]) {
       if (!Number.isFinite(d) || Math.abs(d) > MAX_JOG_MM) {
         throw new Error(`Jog distance out of range (±${MAX_JOG_MM} mm)`);
       }
     }
-    if (dx) {
-      await this.runOnce([
-        DUMMY_SVG_PATH,
-        "--config",
-        this.configPath,
-        "--mode",
-        "utility",
-        "--utility_cmd",
-        "walk_mmx",
-        "--dist",
-        String(dx),
-      ]);
-    }
-    if (dy) {
-      await this.runOnce([
-        DUMMY_SVG_PATH,
-        "--config",
-        this.configPath,
-        "--mode",
-        "utility",
-        "--utility_cmd",
-        "walk_mmy",
-        "--dist",
-        String(dy),
-      ]);
-    }
+    if (dx) await this.manual("walk_mmx", { dist: dx });
+    if (dy) await this.manual("walk_mmy", { dist: dy });
   }
 
-  /** Run nextdraw once and resolve when it exits. */
-  runOnce(args) {
-    return new Promise((resolve, reject) => {
-      const lines = [];
-      const proc = this.spawnCli(args, { onLine: (l) => lines.push(l) });
-      proc.on("close", (code) => {
-        if (code === 0) {
-          this.connected = true;
-          this.emit("change");
-          resolve();
-        } else {
-          const msg = NO_DEVICE_RE.test(lines.join("\n"))
-            ? ((this.connected = false), "No plotter connected")
-            : `nextdraw exited with code ${code}`;
-          this.emit("change");
-          reject(new Error(msg));
-        }
-      });
-      proc.on("error", reject);
-    });
-  }
-
-  /** Run --preview --report_time and parse the estimate. */
+  /** Time and distance estimate; runs on a copy without resume data. */
   async estimate(filename, layer = null) {
-    if (this.state === "plotting") throw new Error("Plot in progress");
-    const filePath = path.join(this.uploadsDir, path.basename(filename));
-    if (!fs.existsSync(filePath))
-      throw new Error(`File not found: ${filename}`);
-
-    const args = [
-      filePath,
-      "--config",
-      this.configPath,
-      "--preview",
-      "--report_time",
-    ];
-    if (layer != null) args.push("--mode", "layers", "--layer", String(layer));
-
-    const output = [];
-    await new Promise((resolve, reject) => {
-      const proc = this.spawnCli(args, { onLine: (line) => output.push(line) });
-      proc.on("close", (code) =>
-        code === 0 ? resolve() : reject(new Error(`exit ${code}`))
-      );
-      proc.on("error", reject);
-    });
-
-    const text = output.join("\n");
-    const result = {};
-    const time = text.match(/Estimated print time:\s*([^\n]+)/i);
-    if (time) result.time = time[1].trim();
-    const draw = text.match(/Length of path to draw:\s*([\d.]+)\s*(\w+)/i);
-    if (draw) result.drawDistance = `${draw[1]} ${draw[2]}`;
-    const travel = text.match(/Pen-up travel distance:\s*([\d.]+)\s*(\w+)/i);
-    if (travel) result.travelDistance = `${travel[1]} ${travel[2]}`;
-    const total = text.match(/Total movement distance:\s*([\d.]+)\s*(\w+)/i);
-    if (total) result.totalDistance = `${total[1]} ${total[2]}`;
-    return result;
+    if (this.state === "plotting" || this.busy)
+      throw new Error("The plotter is busy");
+    const text = stripPlotDataText(
+      fs.readFileSync(this.filePath(filename), "utf8")
+    );
+    return this.driver.estimate(text, layer, this.hooks);
   }
 }
