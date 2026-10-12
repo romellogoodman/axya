@@ -34,7 +34,6 @@ import { EBBMotionWrap } from "../ebb/motion.ts";
 import { listNamedEbbs } from "../ebb/ebb3.ts";
 import { realClock, type Clock, type PortProvider } from "../ebb/transport.ts";
 import {
-  HidingNotPortedError,
   prepareDocument,
   randomizeOptimize,
   PLOB_VERSION,
@@ -420,28 +419,17 @@ export class NextDraw implements MachineContext {
     const svg = this.svg as Element;
     if (!this.backup_original) this.backup_original = this.cloneDocument();
     const resume = this.plot_status.resume;
-    let prepared;
-    try {
-      prepared = prepareDocument(svg, {
-        options: this.options,
-        params: this.params,
-        bounds: this.bounds,
-        layer: resume.new.layer,
-        plob_version: resume.old.plob_version,
-        rand_seed: this.options.random_start
-          ? this.seedForRandomize()
-          : resume.new.rand_seed,
-        warnings: this.warnings,
-      });
-    } catch (err) {
-      if (err instanceof HidingNotPortedError) {
-        this.user_message_fun(
-          "Hidden-line removal is not supported yet by axya's native driver."
-        );
-        return false;
-      }
-      throw err;
-    }
+    const prepared = prepareDocument(svg, {
+      options: this.options,
+      params: this.params,
+      bounds: this.bounds,
+      layer: resume.new.layer,
+      plob_version: resume.old.plob_version,
+      rand_seed: this.options.random_start
+        ? this.seedForRandomize()
+        : resume.new.rand_seed,
+      warnings: this.warnings,
+    });
     if (prepared === null) {
       for (const line of [
         "This document does not have valid dimensions.",

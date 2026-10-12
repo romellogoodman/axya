@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="160mm" height="120mm" viewBox="0 0 160 120">
+  <path d="M5,60 L155,60" stroke="#000" fill="none"/>
+  <g inkscape:groupmode="layer" inkscape:label="1 lines">
+    <path d="M10,10 L150,110 M10,110 L150,10" stroke="#000" fill="none"/>
+    <polyline points="10,90 40,30 70,90 100,30 130,90" fill="none" stroke="#000"/>
+    <circle cx="40" cy="40" r="25" fill="#eee" stroke="#000"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="%hidden notes">
+    <rect x="0" y="0" width="160" height="120" fill="#fff" stroke="#f00"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="2 covers">
+    <rect x="60" y="40" width="50" height="40" fill="#fff" stroke="#00f"/>
+    <path d="M100,70 h40 v40 h-40 z M110,80 h20 v20 h-20 z" fill="#888" fill-rule="evenodd" stroke="none"/>
+    <path d="M20,100 h30 v-30 h-30 z M25,95 h20 v-20 h-20 z" fill="#888" stroke="#00f"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="3 dots">
+    <circle cx="30" cy="20" r="6" fill="#000" stroke="#0f0"/>
+    <circle cx="80" cy="20" r="6" fill="#000" stroke="#0f0"/>
+    <circle cx="130" cy="20" r="6" fill="#000" stroke="#0f0"/>
+    <path d="M10,15 L150,25" stroke="#0f0" fill="none"/>
+  </g>
+</svg>

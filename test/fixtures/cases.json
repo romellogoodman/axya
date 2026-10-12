@@ -211,6 +211,36 @@
         "hiding": true
       }
     },
+    "plot-hiding-layers-mode": {
+      "svg": "filled-layers.svg",
+      "options": {
+        "hiding": true,
+        "mode": "layers",
+        "layer": 1
+      }
+    },
+    "plot-hiding-portrait": {
+      "svg": "filled-portrait.svg",
+      "options": {
+        "hiding": true
+      }
+    },
+    "plot-hiding-random-start": {
+      "svg": "filled-layers.svg",
+      "options": {
+        "hiding": true,
+        "random_start": true
+      }
+    },
+    "plot-hiding-offpage-noclip": {
+      "svg": "offpage.svg",
+      "options": {
+        "hiding": true
+      },
+      "params": {
+        "clip_to_page": false
+      }
+    },
     "plot-low-voltage": {
       "svg": "square-circle.svg",
       "fake": {

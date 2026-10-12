@@ -109,7 +109,7 @@ test/
 | 6 | Transport, commands, pen, status, homing (against the fake EBB) | **Done.** Setup/teardown and utility streams (incl. full limit-switch homing and its failure path) match the oracle; pen timing matches every golden |
 | 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | **Done.** `test/run.e2e.test.ts`: every oracle case (56; hidden-line removal pending) reproduces nextdraw's full command stream with timing, messages, status code, final steps/RAM, stats and output SVG byte for byte |
 | 8 | `Driver` interface over the CLI backend; `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | **Done.** `AXYA_DRIVER=native|cli`; `test/server.native.test.ts` drives plot/pause/resume/stop/pen/estimate end to end against the fake EBB, and the plot stream equals the oracle's |
-| 9 | Hidden-line removal, Snap Colors, Hatch | Matches oracle output |
+| 9 | Hidden-line removal, Snap Colors, Hatch | **Hidden-line removal done.** `clipping.py` plus a TypeScript port of Clipper 6.4.2 (clipper-lib's Int128 and sort differ from pyclipper), with fused multiply-add where the arm64 pyclipper build uses it, libc++ `std::sort` tie order, and CPython set order; 5 hiding cases match end to end and ~1,000 clipping vectors match exactly. Snap Colors and Hatch (Inkscape helpers) not started |
 | 10 | **Hardware bring-up** (AxiDraw V3, NextDraw 2234) | Checklist: [HARDWARE_BRINGUP.md](HARDWARE_BRINGUP.md). Aids: firmware/nickname shown in the UI; `AXYA_EBB_TRACE=<file>` serial trace |
 
 ### Hardware bring-up

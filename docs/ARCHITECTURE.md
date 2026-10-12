@@ -88,7 +88,7 @@ A port of nextdraw 1.7.5's Python internals, module for module. Each file's head
 |---|---|---|
 | `config.ts`, `models.ts` | `nextdraw_conf.py`, `models.py` | Defaults, options, model and handling tables |
 | `svg/` | `digest_svg.py`, ink_extensions | SVG parsing, transforms, units and layer codes |
-| `digest/` | `path_objects.py`, `boundsclip.py` (`clipping.py` in progress) | Document digest, plob format, bounds clipping, hidden-line removal (in progress) |
+| `digest/` | `path_objects.py`, `boundsclip.py`, `clipping.py`, Clipper 6.4.2 | Document digest, plob format, bounds clipping, hidden-line removal |
 | `optimize/` | `plot_optimizations.py`, rtree, spatial grid | Path joining, supersampling, random start (CPython-exact MT19937), reordering |
 | `motion/` | `motion.py`, `plan_utils.py`, `ebb_calc.py` | S-curve planning and T3/TD command generation, with firmware-exact step arithmetic |
 | `ebb/` | `ebb3_serial.py`, `ebb3_motion.py` | Serial transport (serialport), framing, EBB commands |

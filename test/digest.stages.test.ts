@@ -10,10 +10,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { DocDigest } from "../server/driver/digest/pathObjects.ts";
-import {
-  HidingNotPortedError,
-  prepareDocument,
-} from "../server/driver/digest/prepare.ts";
+import { prepareDocument } from "../server/driver/digest/prepare.ts";
 import { setLibm } from "../server/driver/svg/libm.ts";
 import type { DigestSnapshot } from "./helpers/fixtures.ts";
 import { loadStages, stageNames } from "./helpers/fixtures.ts";
@@ -34,8 +31,7 @@ after(() => restore());
 for (const name of stageNames()) {
   const stages = loadStages(name);
   if (!stages.digest) continue;
-  const expected = stages.digest;
-  const hiding = Boolean(stages.options.hiding);
+  const want = stages.digest;
 
   test(`digest stages: ${name}`, () => {
     const root = parseSvgRoot(caseSvgText(name));
@@ -43,17 +39,7 @@ for (const name of stageNames()) {
     const got: [string, DigestSnapshot][] = [];
     ctx.onStage = (stage: string, d: DocDigest) =>
       got.push([stage, digestSnapshot(d)]);
-    try {
-      prepareDocument(root, ctx);
-    } catch (e) {
-      if (!(hiding && e instanceof HidingNotPortedError)) throw e;
-    }
-    // Hiding cases take nextdraw's clipping.py path (hidden-line removal,
-    // phase 9). Only process_svg and rotate precede it; the later stages
-    // are skipped until clipping is ported.
-    const want = hiding
-      ? expected.filter(([s]) => s === "process_svg" || s === "rotate")
-      : expected;
+    prepareDocument(root, ctx);
     assert.deepEqual(
       got.map(([s]) => s),
       want.map(([s]) => s),

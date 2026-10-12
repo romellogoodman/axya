@@ -25,6 +25,7 @@ import {
   supersample,
 } from "../optimize/optimizations.ts";
 import { clipAtBounds } from "./boundsclip.ts";
+import { ClipPathsProcess } from "./clipping.ts";
 import { DocDigest } from "./pathObjects.ts";
 
 export type Stage =
@@ -78,14 +79,6 @@ export interface PreparedDocument {
   vb_stash: [number, number, number, number];
   /** True when the input was a valid plob, so no processing was done. */
   valid_plob: boolean;
-}
-
-/** Thrown after process_svg (and rotate) when options.hiding is set. */
-export class HidingNotPortedError extends Error {
-  constructor() {
-    super("Hidden-line removal (options.hiding) is not ported yet");
-    this.name = "HidingNotPortedError";
-  }
 }
 
 /**
@@ -144,23 +137,40 @@ export function prepareDocument(
     stage("rotate", digest);
   }
 
-  if (ctx.options.hiding) throw new HidingNotPortedError();
-
-  const docBounds = rotate_page
-    ? [svg_height + 1e-9, svg_width + 1e-9]
-    : [svg_width + 1e-9, svg_height + 1e-9];
-  // clip_at_bounds flattens first; doing it here only exposes the stage.
-  digest.flatten();
-  stage("flatten", digest);
-  const outOfBounds = clipAtBounds(
-    digest,
-    ctx.bounds,
-    docBounds,
-    ctx.params.bounds_tolerance,
-    ctx.params.clip_to_page
-  );
-  stage("clip_at_bounds", digest);
-  if (outOfBounds) ctx.warnings.addNew("bounds", ctx.params.model_name);
+  if (ctx.options.hiding) {
+    // Hidden-line clipping, by object fills and the document and plotting
+    // bounds. (calculate_bounds may lower ctx.bounds; see clipping.ts.)
+    const bounds = ClipPathsProcess.calculateBounds(
+      ctx.bounds,
+      svg_height,
+      svg_width,
+      ctx.params.clip_to_page,
+      rotate_page
+    );
+    // flattening removes essential information for the clipping process
+    if (digest.flat) throw new Error("AssertionError");
+    digest.layers = new ClipPathsProcess().run(digest.layers, bounds, true);
+    digest.layerFilter(ctx.layer); // For Layers mode
+    digest.removeUnstroked(); // Only stroked objects can plot
+    digest.flatten();
+    stage("flatten", digest);
+  } else {
+    const docBounds = rotate_page
+      ? [svg_height + 1e-9, svg_width + 1e-9]
+      : [svg_width + 1e-9, svg_height + 1e-9];
+    // clip_at_bounds flattens first; doing it here only exposes the stage.
+    digest.flatten();
+    stage("flatten", digest);
+    const outOfBounds = clipAtBounds(
+      digest,
+      ctx.bounds,
+      docBounds,
+      ctx.params.bounds_tolerance,
+      ctx.params.clip_to_page
+    );
+    stage("clip_at_bounds", digest);
+    if (outOfBounds) ctx.warnings.addNew("bounds", ctx.params.model_name);
+  }
 
   connectNearbyEnds(digest, ctx.params.min_gap, ctx.options.reordering);
   stage("connect_nearby_ends", digest);

@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.12",
-    "clipper-lib": "^6.4.2",
     "express": "^5.2.1",
     "flatten-svg": "^0.3.0",
     "react": "^19.3.0",

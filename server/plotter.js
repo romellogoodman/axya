@@ -28,7 +28,8 @@ export class PlotterManager extends EventEmitter {
     this.configPath = configPath;
     this.uploadsDir = uploadsDir;
     this.driver =
-      driver ?? createDriver(process.env.AXYA_DRIVER || "native", { configPath });
+      driver ??
+      createDriver(process.env.AXYA_DRIVER || "native", { configPath });
 
     this.state = "idle";
     this.currentFile = null;

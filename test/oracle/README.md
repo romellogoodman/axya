@@ -25,6 +25,18 @@ npm run oracle -- plot-basic  # regenerate specific cases
 - `run.py`: runs one case through the Python API with time patched to a virtual clock, so runs are fast and fully deterministic (including `random_start` seeds).
 - `generate.py`: runs every case in a fresh subprocess and writes the goldens. A case with `svg_from` uses another case's output SVG (with `<plotdata>`) as its input, for resume tests.
 
+## Vector generators
+
+Unit-level vectors for individual ported modules, each committed under `test/fixtures/`:
+
+- `ebb_calc_vectors.py`: `plotink/ebb_calc.py`.
+- `planner_vectors.py`: the motion planner helpers.
+- `digest_vectors.py`: path parsing, transforms, MT19937 and the optimizations.
+- `clipping_vectors.py`: hidden-line removal and pyclipper.
+- `clipping_sort_vectors.cpp`: libc++ `std::sort` tie order. Build it with clang++; the file header has the command.
+
+The clipping vectors depend on the arm64 macOS pyclipper wheel, which is compiled with fused multiply-add. An x86_64 build would produce different last bits, so regenerate them on arm64 macOS only.
+
 ## Golden format
 
 ```json

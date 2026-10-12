@@ -37,6 +37,16 @@ server/driver/digest/boundsclip.ts   nextdrawcore/boundsclip.py            GPL-2
 server/driver/digest/prepare.ts      nextdrawcore/nextdraw.py              GPL-2.0-or-later
                                      (prepare_document, randomize_optimize,
                                      get_doc_props)
+server/driver/digest/clipping.ts     nextdrawcore/clipping.py              GPL-2.0-or-later
+server/driver/digest/                Clipper 6.4.2 clipper.cpp             BSL-1.0
+  clippingClipper.ts                 (c) 2010-2017 Angus Johnson;
+                                     pyclipper 1.4.0 _pyclipper.pyx        MIT
+                                     (c) 2015 Gregor Ratajc, Lukas Treyer,
+                                     Maxime Chalton
+server/driver/digest/clippingSort.ts LLVM libc++ 19.1.2 std::sort and      Apache-2.0 WITH
+                                     heap algorithms                       LLVM-exception
+server/driver/digest/clippingPyset.ts CPython 3.14 Objects/setobject.c     PSF-2.0
+                                     (set iteration order)
 server/driver/optimize/              nextdrawcore/plot_optimizations.py    GPL-2.0-or-later
   optimizations.ts
 server/driver/optimize/rtree.ts      plotink/rtree.py (Michal Migurski)    MIT
