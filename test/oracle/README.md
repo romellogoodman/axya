@@ -42,6 +42,14 @@ npm run oracle -- plot-basic  # regenerate specific cases
 
 `stats` and `output_svg` are present only for plotting modes.
 
+## Stage fixtures
+
+Every case also writes `test/fixtures/stages/<case>.json.gz`, which holds nextdraw's intermediate results so each ported module can be tested on its own:
+
+- `options`, `params`, `bounds`: resolved settings at the start of `prepare_document`.
+- `digest`: `[stage, DocDigest]` snapshots after each of `process_svg`, `rotate`, `clip_at_bounds`, `flatten`, `connect_nearby_ends`, `supersample`, `randomize_start` and `reorder` (only the stages that ran).
+- `planner`: every `motion.trajectory` and `motion.compute_segment` call, with its input, the start and end pen position (`xpos`, `ypos`, `z_up`, `accum1/2`), the move list it returned, and `compute_segment`'s extra return values.
+
 ## Limits of the fake
 
 - Motion is instantaneous: the queue is always empty (`QU,6` → 0, `QG` low nibble 0).

@@ -9,6 +9,7 @@ Each case runs in a fresh subprocess so module-level state in nextdraw can't
 leak between cases.
 """
 
+import gzip
 import json
 import os
 import subprocess
@@ -21,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(ROOT, "test", "fixtures")
 GOLDEN = os.path.join(FIXTURES, "golden")
+STAGES = os.path.join(FIXTURES, "stages")
 
 DEFAULTS = {"options": {"model": 8}, "params": {"check_updates": False},
             "fake": {"homed": True, "motors_on": True}}
@@ -29,6 +31,7 @@ DEFAULTS = {"options": {"model": 8}, "params": {"check_updates": False},
 def resolve(name, cases, done):
     case = cases[name]
     merged = {key: {**DEFAULTS[key], **case.get(key, {})} for key in DEFAULTS}
+    merged["stages"] = True  # record per-stage intermediates (test/fixtures/stages/)
     if "svg" in case:
         merged["svg"] = os.path.join("test", "fixtures", "svg", case["svg"])
     if "svg_from" in case:
@@ -52,6 +55,13 @@ def run(name, cases, done):
     if proc.returncode != 0:
         raise SystemExit(f"case {name} failed:\n{proc.stderr}")
     result = json.loads(proc.stdout)
+    stages = result.pop("stages", None)
+    if stages is not None:
+        os.makedirs(STAGES, exist_ok=True)
+        data = json.dumps(stages, separators=(",", ":")).encode("utf8")
+        with open(os.path.join(STAGES, f"{name}.json.gz"), "wb") as f:
+            f.write(gzip.compress(data, mtime=0))  # mtime=0 keeps output byte-stable
+    del merged["stages"]
     if "svg_from" in cases[name]:
         os.unlink(os.path.join(ROOT, merged["svg"]))
         merged["svg"] = {"from": cases[name]["svg_from"]}
