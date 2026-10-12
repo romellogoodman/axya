@@ -38,11 +38,14 @@ export interface PortProvider {
 /** Milliseconds clock; sleep() replaces Python's time.sleep. */
 export interface Clock {
   now(): number;
+  /** Seconds since the epoch, as Python's time.time() (elapsed times, seeds). */
+  time(): number;
   sleep(ms: number): Promise<void>;
 }
 
 export const realClock: Clock = {
   now: () => Date.now(),
+  time: () => Date.now() / 1000,
   sleep: (ms) =>
     ms > 0
       ? new Promise((resolve) => setTimeout(resolve, ms))
@@ -65,6 +68,10 @@ export class VirtualClock implements Clock {
 
   now(): number {
     return (this.t - this.start) * 1000.0;
+  }
+
+  time(): number {
+    return this.t;
   }
 
   async sleep(ms: number): Promise<void> {

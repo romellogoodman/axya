@@ -134,6 +134,21 @@ function legacyPlotdata(root: Element): Element[] {
   return out;
 }
 
+const prefixCounters = new WeakMap<object, number>();
+
+/**
+ * lxml's prefix for a namespace with no in-scope declaration: "ns0", "ns1",
+ * ... from a counter kept per document (_Document._ns_counter), skipping
+ * any prefix already declared on `context` or its ancestors.
+ */
+export function newPrefix(doc: object, context: Element): string {
+  let n = prefixCounters.get(doc) ?? 0;
+  let prefix = `ns${n++}`;
+  while (context.lookupNamespaceURI(prefix) !== null) prefix = `ns${n++}`;
+  prefixCounters.set(doc, n);
+  return prefix;
+}
+
 /** lxml's remove(): the element goes, and so does its tail text. */
 export function removeWithTail(el: Element): void {
   const parent = el.parentNode;
@@ -215,7 +230,7 @@ export class ResumeStatus {
     if (!doc) throw new Error("plotdata: SVG root has no owner document");
     // lxml reuses an in-scope prefix for the namespace, else invents ns0.
     const inScope = svg.lookupPrefix(ND_NS);
-    const prefix = inScope ?? "ns0";
+    const prefix = inScope ?? newPrefix(doc, svg);
     const node = doc.createElementNS(ND_NS, `${prefix}:plotdata`);
     if (!inScope)
       node.setAttributeNS(
@@ -267,6 +282,140 @@ export class ResumeStatus {
         "Or, to start from the beginning of the file, \n" +
         " (1) Plot the output SVG from this command or \n" +
         " (2) use the strip_data utility command.";
+    }
+    return text;
+  }
+
+  /**
+   * res_plot_options_update: when resuming, restore the options that would
+   * ruin the plot if they changed. A synthetic resume (offset_start, no
+   * real pause) keeps the user's options and only the resume position.
+   */
+  resPlotOptionsUpdate(options: {
+    model: number;
+    handling: number;
+    reordering: number;
+    random_start: boolean;
+    auto_rotate: boolean;
+    hiding: boolean;
+    layer_option: number;
+    layer: number;
+  }): void {
+    if (this.old.pause_ref >= 0) {
+      this.copyOld();
+      options.model = this.old.model;
+      options.handling = this.old.handling;
+      options.reordering = this.old.reordering;
+      options.random_start = Boolean(this.old.rand_start);
+      options.auto_rotate = Boolean(this.old.auto_rot);
+      options.hiding = Boolean(this.old.hiding);
+    } else {
+      this.new.pause_dist = this.old.pause_dist;
+      this.new.layer = options.layer_option === 2 ? options.layer : -1;
+    }
+  }
+
+  /** update_from_options: record where and how a plot paused. */
+  updateFromOptions(
+    downTravelInch: number,
+    options: {
+      model: number;
+      handling: number;
+      reordering: number;
+      random_start: boolean;
+      auto_rotate: boolean;
+      hiding: boolean;
+    }
+  ): void {
+    this.new.pause_dist = downTravelInch;
+    this.new.pause_ref = downTravelInch;
+    this.new.pause_warn = 1;
+    this.new.model = options.model;
+    this.new.handling = options.handling;
+    this.new.reordering = options.reordering;
+    this.new.rand_start = Number(options.random_start);
+    this.new.auto_rot = Number(options.auto_rotate);
+    this.new.hiding = Number(options.hiding);
+  }
+
+  /**
+   * manage_offset: report, and for res_adj_in/res_adj_mm move, the resume
+   * position stored in the file. Returns the message text.
+   */
+  manageOffset(svg: Element, utilityCmd: string, dist: string): string {
+    const defaultUnit = utilityCmd === "res_adj_mm" ? "mm" : "in";
+    let distInches: number;
+    try {
+      distInches = parseDist(dist, defaultUnit);
+    } catch (err) {
+      return `Error: ${(err as Error).message}`;
+    }
+    this.readFromSvg(svg);
+    this.copyOld();
+    const ref = Math.max(this.old.pause_ref, 0);
+    const cur = Math.max(this.old.pause_dist, 0);
+    const originalInch = `${formatFixed(ref, 3)} inches`;
+    const updatedInch = `${formatFixed(cur, 3)} inches`;
+    const originalMm = `${formatFixed(ref * 25.4, 3)} mm`;
+    const updatedMm = `${formatFixed(cur * 25.4, 3)} mm`;
+    let originalText: string;
+    let updatedText: string;
+    let adjustmentText = "";
+    let newPosText = "";
+    if (utilityCmd === "res_adj_in" || utilityCmd === "res_adj_mm") {
+      const mm = utilityCmd === "res_adj_mm";
+      originalText = mm ? originalMm : originalInch;
+      updatedText = mm ? updatedMm : updatedInch;
+      adjustmentText = mm
+        ? `${formatFixed(distInches * 25.4, 3)} mm`
+        : `${formatFixed(distInches, 3)} inches`;
+      let newPauseDist = distInches + cur;
+      newPosText = mm
+        ? `${formatFixed(newPauseDist * 25.4, 3)} mm`
+        : `${formatFixed(newPauseDist, 3)} inches`;
+      if (newPauseDist <= 0) {
+        newPauseDist = -1;
+        newPosText = "the file beginning";
+      }
+      this.new.pause_dist = newPauseDist;
+    } else {
+      if (this.old.pause_dist < 0) {
+        return (
+          "No in-progress plot data found in file.\n" +
+          "To set up the plot to be resumed at a given point, add an offset."
+        );
+      }
+      originalText = `${originalMm} (${originalInch})`;
+      updatedText = `${updatedMm} (${updatedInch})`;
+    }
+    let text: string;
+    if (this.old.pause_dist < 0 && this.old.pause_ref < 0) {
+      text =
+        "This document was configured to start plotting at the beginning of the file.\n";
+    } else if (this.old.pause_ref < 0) {
+      text =
+        "This document was originally configured to start plotting at the " +
+        "beginning of the file.\nThe resume position was then adjusted to " +
+        updatedText +
+        ".\n";
+    } else if (this.old.pause_dist === this.old.pause_ref) {
+      text = "Plot was paused after " + originalText + " of pen-down travel.\n";
+    } else {
+      text =
+        "Plot was originally paused after " +
+        originalText +
+        " of pen-down travel. The resume position was then adjusted to " +
+        updatedText +
+        ".\n";
+    }
+    if (utilityCmd === "res_adj_in" || utilityCmd === "res_adj_mm") {
+      text +=
+        "After adding a new offset of " +
+        adjustmentText +
+        ", the resume position is now set at " +
+        newPosText +
+        ".\n";
+      this.writeToSvg(svg);
     }
     return text;
   }

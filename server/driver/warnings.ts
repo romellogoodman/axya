@@ -37,6 +37,11 @@ export class PlotWarnings {
     if (!this.warning_dict.has(name)) this.warning_dict.set(name, value);
   }
 
+  /** nextdraw's name for addNew (the motion planner calls it this way). */
+  add_new(name: string, value = "1"): void {
+    this.addNew(name, value);
+  }
+
   suppress(name: string): void {
     this.suppress_list.push(name);
   }

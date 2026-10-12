@@ -73,6 +73,14 @@ server/driver/machine/pen.ts         nextdrawcore/pen_handling.py          GPL-2
 server/driver/machine/utility.ts     nextdrawcore/nextdraw.py (setup,      GPL-2.0-or-later
                                      utility and connect commands)
                                      (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/run/nextdraw.ts        nextdrawcore/nextdraw.py (effect,      GPL-2.0-or-later
+                                     plot loop, pause_check, cleanup),
+                                     nextdraw/nextdraw_py.py (plot_run)
+                                     (c) 2025-2026 Windell H. Oskay, Bantam Tools
+server/driver/run/dripfeed.ts        nextdrawcore/dripfeed.py              GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
+server/driver/run/preview.ts         nextdrawcore/preview.py               GPL-2.0-or-later
+                                     (c) 2025 Windell H. Oskay, Bantam Tools
 server/driver/run/status.ts          nextdrawcore/plot_status.py,          GPL-2.0-or-later
                                      plotink/text_utils.py (format_hms)    MIT
                                      (c) 2024-2026 Windell H. Oskay, Bantam Tools

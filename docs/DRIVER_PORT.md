@@ -107,7 +107,7 @@ test/
 | 4 | Optimizations (join, supersample, random start, reorder) | **Done.** Matches every recorded stage, incl. CPython MT19937 random start. Known last-bit differences: macOS libm vs V8 on 4 of 45 sin/cos/tan inputs (rotate, skewX, arc sectors); tests replay CPython's values (`server/driver/svg/libm.ts`) |
 | 5 | S-curve planner + command generation | **Done.** All 8,753 recorded planner calls reproduce exactly; formatted T3/TD lines equal the goldens. Known last-bit difference: macOS libm `pow(g, 2.0)` in `cubic_eqn` vs `g*g` in V8 (~0.14% of inputs); never survives the planner's float32 storage in 1M sampled calls |
 | 6 | Transport, commands, pen, status, homing (against the fake EBB) | **Done.** Setup/teardown and utility streams (incl. full limit-switch homing and its failure path) match the oracle; pen timing matches every golden |
-| 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | Full plot, pause, and resume streams match; preview times match |
+| 7 | Dripfeed, pause/resume, plotdata, utility modes, preview/estimate | **Done.** `test/run.e2e.test.ts`: every oracle case (56; hidden-line removal pending) reproduces nextdraw's full command stream with timing, messages, status code, final steps/RAM, stats and output SVG byte for byte |
 | 8 | `Driver` interface over the CLI backend; `NativeDriver` wired into `PlotterManager` and the UI (instant pen/jog, position, firmware check, start-over, stop reasons) | App works end-to-end against the fake EBB |
 | 9 | Hidden-line removal, Snap Colors, Hatch | Matches oracle output |
 | 10 | **Hardware bring-up** (with the user's machines) | See below |
